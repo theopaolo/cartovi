@@ -1,0 +1,31 @@
+# TEMPORAIRE — outil de développement : inspecte des réponses d'API depuis un
+# runner (le conteneur de dev n'a pas accès à ces domaines). À supprimer.
+name: Sonde API (dev)
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "URLs séparées par des espaces"
+        required: true
+      bytes:
+        description: "Octets affichés par réponse"
+        default: "1500"
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          URLS: ${{ inputs.urls }}
+          N: ${{ inputs.bytes }}
+        run: |
+          for u in $URLS; do
+            echo "=================== $u"
+            curl -sSL --max-time 120 -A "cartovi-probe" -o /tmp/r -w "HTTP %{http_code} | %{content_type} | %{size_download} octets | %{url_effective}\n" "$u" || true
+            file /tmp/r
+            if gzip -t /tmp/r 2>/dev/null; then zcat /tmp/r | head -c "$N"
+            elif unzip -l /tmp/r >/dev/null 2>&1; then unzip -l /tmp/r | head -20; f=$(unzip -Z1 /tmp/r | head -1); unzip -p /tmp/r "$f" | head -c "$N"
+            else head -c "$N" /tmp/r; fi
+            echo
+          done
