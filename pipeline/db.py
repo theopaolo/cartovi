@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS source (
     provider  TEXT NOT NULL,
     url       TEXT NOT NULL,
     licence   TEXT NOT NULL,
-    refresh   TEXT NOT NULL
+    refresh   TEXT NOT NULL,
+    version   INTEGER NOT NULL DEFAULT 1  -- version de la méthode de calcul
 );
 CREATE TABLE IF NOT EXISTS indicator (
     id          TEXT PRIMARY KEY,
@@ -74,6 +75,9 @@ def connect(path):
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     con.executescript(SCHEMA)
+    # migration : colonne ajoutée après la première mise en service
+    if "version" not in {r["name"] for r in con.execute("PRAGMA table_info(source)")}:
+        con.execute("ALTER TABLE source ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
     return con
 
 
@@ -89,11 +93,12 @@ def upsert_territories(con, territories):
 
 def upsert_source(con, source, indicators):
     con.execute(
-        """INSERT INTO source (id, label, provider, url, licence, refresh)
-           VALUES (:id, :label, :provider, :url, :licence, :refresh)
+        """INSERT INTO source (id, label, provider, url, licence, refresh, version)
+           VALUES (:id, :label, :provider, :url, :licence, :refresh, :version)
            ON CONFLICT(id) DO UPDATE SET label=excluded.label, provider=excluded.provider,
-             url=excluded.url, licence=excluded.licence, refresh=excluded.refresh""",
-        source,
+             url=excluded.url, licence=excluded.licence, refresh=excluded.refresh,
+             version=excluded.version""",
+        {**source, "version": source.get("version", 1)},
     )
     for ind in indicators:
         con.execute(

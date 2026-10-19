@@ -15,6 +15,7 @@ SOURCE = {
     "url": "https://www.data.gouv.fr/fr/datasets/statistiques-dvf/",
     "licence": "Licence Ouverte 2.0",
     "refresh": "semestriel (avril, octobre)",
+    "max_age_days": 6,
 }
 
 INDICATORS = [

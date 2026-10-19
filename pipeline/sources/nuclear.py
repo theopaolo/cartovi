@@ -19,6 +19,7 @@ SOURCE = {
     "url": "https://www.asn.fr/l-asn-controle/carte-des-installations-nucleaires",
     "licence": "Données publiques",
     "refresh": "à chaque mise en service ou arrêt définitif",
+    "max_age_days": 6,
 }
 
 INDICATORS = [

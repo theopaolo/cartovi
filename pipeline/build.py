@@ -61,6 +61,9 @@ def is_fresh(con, src, today):
     """Vrai si la dernière collecte réussie date de moins de `max_age_days`.
     Évite de retélécharger chaque semaine des données qui changent une fois
     par an, et ménage les quotas des API (Open-Meteo, Géorisques)."""
+    known = con.execute("SELECT version FROM source WHERE id=?", (src["id"],)).fetchone()
+    if known is None or known["version"] != src.get("version", 1):
+        return False  # méthode de calcul modifiée : on recollecte
     row = con.execute(
         "SELECT MAX(finished_at) t FROM run WHERE source_id=? AND status='ok'", (src["id"],)
     ).fetchone()

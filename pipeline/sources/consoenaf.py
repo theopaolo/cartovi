@@ -17,6 +17,7 @@ SOURCE = {
     "url": "https://www.data.gouv.fr/fr/datasets/?q=consommation%20d%27espaces%20naturels%20agricoles%20et%20forestiers",
     "licence": "Licence Ouverte 2.0",
     "refresh": "annuel",
+    "max_age_days": 6,
 }
 
 YEARS = 5
