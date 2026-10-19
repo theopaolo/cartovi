@@ -1,0 +1,78 @@
+# Collecte hebdomadaire des données ouvertes, historisation dans SQLite,
+# commit du résultat puis publication du site statique (GitHub Pages).
+name: Mise à jour des données
+
+on:
+  schedule:
+    - cron: "23 4 * * 1" # lundi, 04:23 UTC
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Sources à collecter (identifiants séparés par des virgules, vide = toutes)"
+        required: false
+        default: ""
+  push:
+    paths:
+      - "pipeline/**"
+      - ".github/workflows/update.yml"
+
+concurrency:
+  group: update-data-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collecte
+        env:
+          ONLY: ${{ inputs.only }}
+        run: python -m pipeline.build ${ONLY:+--only "$ONLY"}
+
+      - name: Rapport
+        if: always()
+        run: python -m pipeline.report >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit des données
+        run: |
+          git config user.name "cartovi-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/cartovi.sqlite web/data
+          if git diff --cached --quiet; then echo "Aucun changement."; exit 0; fi
+          git commit -m "données : collecte du $(date -u +%F)"
+          git pull --rebase --autostash
+          git push
+
+  deploy:
+    needs: update
+    # Activer : Settings → Pages → Source « GitHub Actions », puis
+    # Settings → Variables → Actions : PAGES = true
+    if: vars.PAGES == 'true' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }} # inclut le commit de données du job précédent
+      - run: cp data/cartovi.sqlite web/data/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4
