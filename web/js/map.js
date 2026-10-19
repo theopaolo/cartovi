@@ -2,7 +2,7 @@
 import { s, h } from './dom.js';
 
 const LABEL_MIN_AREA = 4000; // km² : seuil d'affichage des noms
-const LABEL_SIZE = 10; // taille du texte, en unités du viewBox
+const LABEL_SIZE = 12; // taille du texte, en unités du viewBox
 
 export function createMap(wrap, mapData, { onSelect }) {
   const svg = s('svg', {
@@ -64,8 +64,8 @@ export function createMap(wrap, mapData, { onSelect }) {
   const placed = [];
   for (const t of [...mapData.territories].sort((a, b) => b.area_km2 - a.area_km2)) {
     if (t.area_km2 < LABEL_MIN_AREA) break;
-    const w = t.name.length * LABEL_SIZE * 0.52 + 6;
-    const hh = LABEL_SIZE + 4;
+    const w = t.name.length * LABEL_SIZE * 0.6 + 6;
+    const hh = LABEL_SIZE + 5;
     const [x, y] = t.label;
     const box = [x - w / 2, y - hh / 2, x + w / 2, y + hh / 2];
     if (placed.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;

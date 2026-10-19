@@ -23,12 +23,13 @@ export function renderLegend(root, view, { staleCount = 0 } = {}) {
   const items = view.classes.map((c, i) => {
     const sw = h('i', { class: 'sw', style: `background:var(--${comp ? 'c' : 's'}${i + 1})` });
     if (comp) {
-      const range = c.count ? `score ${fmtNumber(c.min, 0)}–${fmtNumber(c.max, 0)}` : '';
-      return h('li', {}, sw, h('div', {}, h('b', {}, CLASSES[i].name), h('span', { class: 'ds' }, CLASSES[i].desc), h('span', { class: 'ct' }, `${plural(c.count, 'département')}${range ? ` · ${range}` : ''}`)));
+      const ct = c.count ? `${c.count} dép. · score ${fmtNumber(c.min, 0)}–${fmtNumber(c.max, 0)}` : 'aucun département';
+      return h('li', {}, sw, h('div', {}, h('div', { class: 'row' }, h('b', {}, CLASSES[i].name), h('span', { class: 'ct' }, ct)), h('span', { class: 'ds' }, CLASSES[i].desc)));
     }
     const f = (v) => fmtNumber(v, ind.decimals);
     const range = !c.count ? 'aucun département' : c.min === c.max ? f(c.min) : `${f(c.min)} – ${f(c.max)}`;
-    return h('li', {}, sw, h('div', {}, h('b', {}, `${range}${c.count && ind.unit ? NBSP + ind.unit : ''}`), h('span', { class: 'ds' }, VALUE_CLASSES[i]), h('span', { class: 'ct' }, plural(c.count, 'département'))));
+    const name = `${range}${c.count && ind.unit ? NBSP + ind.unit : ''}`;
+    return h('li', {}, sw, h('div', {}, h('div', { class: 'row' }, h('b', {}, name), h('span', { class: 'ct' }, c.count ? `${c.count} dép.` : '')), h('span', { class: 'ds' }, VALUE_CLASSES[i])));
   });
 
   const foot = [];
@@ -49,6 +50,6 @@ export function renderLegend(root, view, { staleCount = 0 } = {}) {
       ),
     ),
     h('ol', { class: `legend-list ${comp ? 'is-comp' : 'is-ind'}` }, items),
-    foot.length ? h('p', { class: 'legend-foot' }, foot) : null,
+    ...(foot.length ? [h('p', { class: 'legend-foot' }, foot)] : []), // pas de null : replaceChildren l'écrirait en texte
   );
 }

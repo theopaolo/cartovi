@@ -80,7 +80,7 @@ export function describe(view, terr) {
     return {
       fill: `c${e.cls}`,
       aria: `${head}, ${cls}, ${rankSpoken(e.rank, view.n)}`,
-      tip: [head, cls, `${rankText(e.rank, view.n)} · score ${fmtNumber(e.score * 100, 0)}/100`],
+      tip: [head, cls, `${rankText(e.rank, view.n)} · score ${fmtNumber(e.score * 100, 1)}/100`],
     };
   }
   const val = fmtValue(e.value, view.indicator);

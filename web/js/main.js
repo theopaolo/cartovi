@@ -147,13 +147,14 @@ function closeDetail() {
   if (hadFocus) (origin === 'table' ? ui.ranking.focusRow(prev) : ui.map.focusDept(prev));
 }
 
-/** Mobile : la feuille du détail masque le bas de l'écran ; on fait défiler pour garder le département visible. */
+/** Mobile : la feuille du détail masque le bas de l'écran ; on centre le département dans la zone restée visible. */
 function revealAboveSheet(code) {
   requestAnimationFrame(() => {
     const r = ui.map.rectOf(code);
     const sheetTop = $('#detail').getBoundingClientRect().top;
-    const delta = Math.min(r.bottom - (sheetTop - 12), r.top - 8);
-    if (delta > 0) window.scrollBy({ top: delta, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    if (r.top >= 0 && r.bottom <= sheetTop - 24) return;
+    const delta = Math.min((r.top + r.bottom) / 2 - sheetTop / 2, r.top - 8);
+    window.scrollBy({ top: delta, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   });
 }
 

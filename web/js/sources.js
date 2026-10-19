@@ -22,7 +22,7 @@ export function renderSources(root, data, nTerrs, codes) {
         ? h(
             'p',
             { class: 'stale-msg' },
-            `Dernière collecte en échec${ind.last_run.finished_at ? ` le ${fmtDate(ind.last_run.finished_at)}` : ''}${ind.last_run.message ? ` : ${ind.last_run.message}` : ''}. Valeurs de la dernière collecte réussie${ind.last_ok ? ` (${fmtDate(ind.last_ok)})` : ''}.`,
+            `Dernière collecte ${ind.last_run.status === 'rejected' ? 'rejetée (données incomplètes ou aberrantes)' : 'en échec'}${ind.last_run.finished_at ? ` le ${fmtDate(ind.last_run.finished_at)}` : ''}${ind.last_run.message ? ` : ${ind.last_run.message}` : ''}. Valeurs de la dernière collecte réussie${ind.last_ok ? ` (${fmtDate(ind.last_ok)})` : ''}.`,
           )
         : null,
       h(

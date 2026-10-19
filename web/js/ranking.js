@@ -1,7 +1,7 @@
 // ranking.js — tableau triable des départements : alternative accessible à la carte.
 import { h } from './dom.js';
 import { CLASSES, VALUE_CLASSES } from './classes.js';
-import { NBSP, fmtNumber, fmtValue, rankText } from './format.js';
+import { fmtNumber, fmtValue, rankText } from './format.js';
 
 const COLS = [
   { key: 'rank', label: 'Rang', first: 1 },
@@ -43,7 +43,7 @@ export function createRanking(root, terrs, { onSelect }) {
   for (const t of terrs) {
     const cells = {
       rank: h('td', { class: 'c-rank' }),
-      name: h('td', { class: 'c-name' }, h('button', { type: 'button', class: 'link', 'data-code': t.code }, t.name)),
+      name: h('td', { class: 'c-name' }, h('button', { type: 'button', class: 'link', 'data-code': t.code }, t.name), h('span', { class: 'code-inline', 'aria-hidden': 'true' }, ` ${t.code}`)),
       code: h('td', { class: 'c-code' }, t.code),
       cls: h('td', { class: 'c-cls' }),
       val: h('td', { class: 'c-val' }),
