@@ -19,6 +19,10 @@ USER_AGENT = "cartovi/1.0 (+https://github.com/theopaolo/cartovi)"
 CACHE_DIR = Path(__file__).resolve().parent.parent / ".cache"
 
 
+def short(url, n=160):
+    return url if len(url) <= n else url[: n - 1] + "…"
+
+
 class Http:
     def __init__(self, use_cache=False, retries=4, timeout=60, log=print):
         self.use_cache = use_cache
@@ -46,14 +50,19 @@ class Http:
                         body = gzip.decompress(body)
                 break
             except urllib.error.HTTPError as e:
+                detail = e.read()
+                if detail[:2] == b"\x1f\x8b":
+                    detail = gzip.decompress(detail)
+                detail = detail[:300].decode("utf-8", "replace")
                 # 4xx (hors 429) : inutile d'insister, l'URL ou les paramètres sont faux.
-                if e.code < 500 and e.code != 429 or attempt == self.retries:
-                    detail = e.read()[:300].decode("utf-8", "replace")
-                    raise RuntimeError(f"HTTP {e.code} sur {url} : {detail}") from e
+                # 429 sur un quota horaire ou journalier : attendre ne servirait à rien.
+                exhausted = e.code == 429 and any(w in detail.lower() for w in ("hourly", "daily", "monthly"))
+                if (e.code < 500 and e.code != 429) or exhausted or attempt == self.retries:
+                    raise RuntimeError(f"HTTP {e.code} sur {short(url)} : {detail}") from e
                 wait = int(e.headers.get("Retry-After") or (61 if e.code == 429 else delay))
             except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
                 if attempt == self.retries:
-                    raise RuntimeError(f"échec réseau sur {url} : {e}") from e
+                    raise RuntimeError(f"échec réseau sur {short(url)} : {e}") from e
                 wait = delay
             self.log(f"    réessai dans {wait}s ({url[:90]})")
             time.sleep(wait)
