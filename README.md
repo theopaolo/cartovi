@@ -150,6 +150,11 @@ autre modification.
   GitHub. En cas de blocage, les valeurs précédentes restent affichées comme périmées.
 - **Climat futur** : un seul modèle, au forçage d'émissions élevées. C'est un ordre de
   grandeur comparatif, pas une prévision.
+- **Open-Meteo** : son quota est partagé par IP, et les runners GitHub partagent leurs IP.
+  Une collecte coûte environ un quota horaire. Une seule des deux sources climat est donc
+  collectée par exécution, l'autre est reportée à la suivante. Le climat est échantillonné
+  en deux communes par département (celles des 1er et 3e quartiles de population), pas
+  sur tout le territoire.
 - Les points d'accès VigiEau (`/api/data/departement`) et Géorisques v1 ne sont pas
   versionnés comme des API stables. Un changement de format est détecté (rejet), mais
   pas corrigé automatiquement.
