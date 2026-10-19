@@ -4,7 +4,7 @@ Un seul appel renvoie les ~35 000 communes avec leur population légale INSEE
 (dernier millésime publié) et leur surface en hectares.
 """
 
-from ..util import dep_of_commune
+from ..util import communes, dep_of_commune
 
 SOURCE = {
     "id": "population",
@@ -13,6 +13,7 @@ SOURCE = {
     "url": "https://geo.api.gouv.fr/decoupage-administratif",
     "licence": "Licence Ouverte 2.0",
     "refresh": "annuel (populations légales)",
+    "max_age_days": 28,
 }
 
 INDICATORS = [
@@ -29,20 +30,16 @@ INDICATORS = [
             "Population municipale rapportée à la surface. Comptée comme défavorable : "
             "une faible densité laisse plus de terres par habitant et moins de pression "
             "foncière — c'est un choix de valeur propre à l'autonomie, pas une vérité générale "
-            "(la densité facilite aussi l'accès aux services)."
+            "(la densité facilite aussi l'accès aux services). Populations légales en vigueur "
+            "l'année de collecte."
         ),
     },
 ]
 
 
 def fetch(ctx):
-    communes = ctx.http.json(
-        "https://geo.api.gouv.fr/communes",
-        {"fields": "code,population,surface", "format": "json"},
-        timeout=180,
-    )
     pop, surf = {}, {}
-    for c in communes:
+    for c in communes(ctx):
         dep = dep_of_commune(c.get("code"))
         if dep is None or c.get("population") is None:
             continue

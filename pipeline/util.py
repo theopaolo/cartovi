@@ -38,3 +38,20 @@ def per_1000km2(counts, territories):
     """Convertit des effectifs par département en densité pour 1 000 km²,
     en émettant 0 pour les départements sans occurrence."""
     return {c: 1000 * counts.get(c, 0) / t.area_km2 for c, t in territories.items()}
+
+
+def communes(ctx):
+    """Liste des communes (geo.api.gouv.fr) avec population et surface, téléchargée
+    une seule fois par exécution et partagée entre les sources."""
+    if "communes" not in ctx.memo:
+        ctx.memo["communes"] = ctx.http.json(
+            "https://geo.api.gouv.fr/communes",
+            {"fields": "code,population,surface", "format": "json"},
+            timeout=180,
+        )
+    return ctx.memo["communes"]
+
+
+def complete_years(today, n):
+    """Les `n` dernières années civiles achevées."""
+    return list(range(today.year - n, today.year))

@@ -32,7 +32,7 @@ def main(path=ROOT / "data" / "cartovi.sqlite"):
         v = [r["value"] for r in vals]
         periods = sorted({r["period"] for r in vals})
         print(
-            f"| {ind['id']} | {len(v)} | {periods[0]}–{periods[-1]} | {v[0]:.4g} | {v[len(v) // 2]:.4g} | {v[-1]:.4g} |"
+            f"| {ind['id']} | {len(v)} | {' / '.join(periods)} | {v[0]:.4g} | {v[len(v) // 2]:.4g} | {v[-1]:.4g} |"
         )
 
 

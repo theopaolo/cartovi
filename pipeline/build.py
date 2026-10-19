@@ -57,9 +57,25 @@ def validate(rows, indicators, codes):
     return clean, problems
 
 
-def collect(con, sources, ctx):
+def is_fresh(con, src, today):
+    """Vrai si la dernière collecte réussie date de moins de `max_age_days`.
+    Évite de retélécharger chaque semaine des données qui changent une fois
+    par an, et ménage les quotas des API (Open-Meteo, Géorisques)."""
+    row = con.execute(
+        "SELECT MAX(finished_at) t FROM run WHERE source_id=? AND status='ok'", (src["id"],)
+    ).fetchone()
+    if not row["t"]:
+        return False
+    age = (today - datetime.date.fromisoformat(row["t"][:10])).days
+    return age < src.get("max_age_days", 0)
+
+
+def collect(con, sources, ctx, force=False):
     for mod in sources:
         src = mod.SOURCE
+        if not force and is_fresh(con, src, ctx.today):
+            ctx.log(f"→ {src['id']} : à jour (< {src['max_age_days']} j), ignorée")
+            continue
         started = db.now()
         t0 = time.time()
         ctx.log(f"→ {src['id']} ({src['provider']})")
@@ -138,6 +154,7 @@ def main(argv=None):
     p.add_argument("--only", help="identifiants de sources, séparés par des virgules")
     p.add_argument("--cache", action="store_true", help="cache disque des requêtes HTTP")
     p.add_argument("--export-only", action="store_true")
+    p.add_argument("--force", action="store_true", help="ignore max_age_days des sources")
     args = p.parse_args(argv)
 
     terrs = territories.load()
@@ -152,9 +169,13 @@ def main(argv=None):
         if wanted and len(chosen) != len(wanted):
             p.error(f"sources inconnues : {wanted - {m.SOURCE['id'] for m in chosen}}")
         ctx = SimpleNamespace(
-            http=Http(use_cache=args.cache), territories=terrs, log=print, today=datetime.date.today()
+            http=Http(use_cache=args.cache),
+            territories=terrs,
+            log=print,
+            today=datetime.date.today(),
+            memo={},  # partage de téléchargements entre sources d'une même exécution
         )
-        collect(con, chosen, ctx)
+        collect(con, chosen, ctx, force=args.force or bool(wanted))
         print(f"{ctx.http.requests} requêtes HTTP")
 
     n = export(con, args.out, terrs)

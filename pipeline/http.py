@@ -50,7 +50,7 @@ class Http:
                 if e.code < 500 and e.code != 429 or attempt == self.retries:
                     detail = e.read()[:300].decode("utf-8", "replace")
                     raise RuntimeError(f"HTTP {e.code} sur {url} : {detail}") from e
-                wait = int(e.headers.get("Retry-After") or delay)
+                wait = int(e.headers.get("Retry-After") or (61 if e.code == 429 else delay))
             except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
                 if attempt == self.retries:
                     raise RuntimeError(f"échec réseau sur {url} : {e}") from e
