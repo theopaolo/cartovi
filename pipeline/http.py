@@ -7,6 +7,7 @@ Le cache (répertoire `.cache/`, ignoré par git) sert au développement :
 import csv
 import gzip
 import hashlib
+import http.client
 import io
 import json
 import time
@@ -17,6 +18,14 @@ from pathlib import Path
 
 USER_AGENT = "cartovi/1.0 (+https://github.com/theopaolo/cartovi)"
 CACHE_DIR = Path(__file__).resolve().parent.parent / ".cache"
+
+
+def _retry_after(value, default):
+    """Retry-After peut être un nombre de secondes ou une date HTTP : on borne à 5 min."""
+    try:
+        return max(1, min(300, int(value)))
+    except (TypeError, ValueError):
+        return default
 
 
 def short(url, n=160):
@@ -59,10 +68,11 @@ class Http:
                 exhausted = e.code == 429 and any(w in detail.lower() for w in ("hourly", "daily", "monthly"))
                 if (e.code < 500 and e.code != 429) or exhausted or attempt == self.retries:
                     raise RuntimeError(f"HTTP {e.code} sur {short(url)} : {detail}") from e
-                wait = int(e.headers.get("Retry-After") or (61 if e.code == 429 else delay))
-            except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+                wait = _retry_after(e.headers.get("Retry-After"), 61 if e.code == 429 else delay)
+            except (OSError, EOFError, http.client.HTTPException) as e:
+                # coupure réseau, délai dépassé, réponse tronquée (en-têtes ou corps gzip)
                 if attempt == self.retries:
-                    raise RuntimeError(f"échec réseau sur {short(url)} : {e}") from e
+                    raise RuntimeError(f"échec réseau sur {short(url)} : {type(e).__name__}: {e}") from e
                 wait = delay
             self.log(f"    réessai dans {wait}s ({url[:90]})")
             time.sleep(wait)

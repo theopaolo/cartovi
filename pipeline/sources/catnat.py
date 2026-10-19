@@ -86,6 +86,8 @@ def fetch(ctx):
         dep = dep_of_commune(c.get("code"))
         n_communes[dep] = n_communes.get(dep, 0) + 1
     ctx.log(f"  {len(seen)} reconnaissances depuis {since}")
+    if not 20_000 < len(seen) < 300_000:  # ~68 000 sur 2006-2026
+        raise ValueError(f"nombre de reconnaissances invraisemblable : {len(seen)}")
     period = f"{ctx.today.year - YEARS}–{ctx.today.year}"
     for dep in ctx.territories:
         if n_communes.get(dep):

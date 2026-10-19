@@ -27,7 +27,7 @@ INDICATORS = [
         "direction": -1,
         "weight": 1.5,
         "decimals": 0,
-        "min_coverage": 0.96,  # 93/96 : Alsace-Moselle hors DVF
+        "min_coverage": 0.9,  # 93/96 au mieux : Alsace-Moselle hors DVF
         "description": (
             "Médiane du prix au m² des ventes de maisons sur les 10 derniers semestres publiés "
             "(ventes d'un seul bien). Proxy de l'accessibilité du foncier bâti ; ne reflète pas "

@@ -23,6 +23,7 @@ from types import SimpleNamespace
 from . import db, territories
 from .http import Http
 from .sources import SOURCES
+from .util import Deferred
 
 ROOT = Path(__file__).resolve().parent.parent
 THEMES = [
@@ -47,8 +48,13 @@ def validate(rows, indicators, codes):
         got = by_ind.get(ind["id"], [])
         covered = {c for _, c, _, _ in got}
         need = ind.get("min_coverage", 0.95)
+        values = [round(float(v), 9) for _, _, _, v in got]
+        top = max((values.count(v) for v in set(values)), default=0)
         if len(covered) < need * len(codes):
             problems.append(f"{ind['id']} : {len(covered)}/{len(codes)} départements")
+        elif top > 0.8 * len(values):
+            # un champ renommé ou une réponse vide donne souvent 96 zéros « valides »
+            problems.append(f"{ind['id']} : {top}/{len(values)} valeurs identiques")
         else:
             clean.extend(got)
     unknown = set(by_ind) - {i["id"] for i in indicators}
@@ -92,6 +98,10 @@ def collect(con, sources, ctx, force=False):
                 db.set_version(con, src)
             msg = "; ".join(problems)
             ctx.log(f"  {status} : {n} valeurs en {time.time() - t0:.0f}s {msg}")
+        except Deferred as e:
+            ctx.log(f"  reportée : {e}")
+            con.rollback()
+            continue
         except Exception as e:  # noqa: BLE001 — une source ne doit jamais faire tomber les autres
             n, status = 0, "error"
             msg = f"{type(e).__name__}: {e}"

@@ -14,6 +14,7 @@ on:
   push:
     paths:
       - "pipeline/**"
+      - "web/**"
       - ".github/workflows/update.yml"
 
 concurrency:
@@ -29,6 +30,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }} # pointe de branche : inclut le commit de données d'un run précédent en file
 
       - uses: actions/setup-python@v6
         with:

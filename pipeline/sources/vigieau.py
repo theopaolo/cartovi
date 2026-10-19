@@ -55,5 +55,9 @@ def fetch(ctx):
                     days[d["code"]] = days.get(d["code"], 0) + 1
                 else:
                     days.setdefault(d["code"], 0)
+    severe = sum(days.values()) / len(years)
+    ctx.log(f"  {severe:.0f} jours·département de restriction sévère par an")
+    if severe < 500:  # ~7 400 par an sur 2021-2025 ; un champ renommé donnerait 0
+        raise ValueError(f"total invraisemblable : {severe:.0f} jours·département/an")
     for code, n in days.items():
         yield "secheresse_jours", code, f"{years[0]}–{years[-1]}", n / len(years)

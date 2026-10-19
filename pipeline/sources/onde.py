@@ -19,6 +19,7 @@ SOURCE = {
 
 YEARS = 5
 DRY = {"2", "3"}  # écoulement non visible, assec
+KNOWN = {"1", "1a", "1f", "2", "3"}  # hors « observation impossible »
 
 INDICATORS = [
     {
@@ -57,7 +58,7 @@ def fetch(ctx):
         while url:
             page = ctx.http.json(url, params, timeout=120)
             for o in page.get("data", []):
-                if 5 <= int(o["date_observation"][5:7]) <= 9 and o.get("code_ecoulement"):
+                if 5 <= int(o["date_observation"][5:7]) <= 9 and o.get("code_ecoulement") in KNOWN:
                     total += 1
                     dry += o["code_ecoulement"] in DRY
             url, params = page.get("next"), None  # `next` contient déjà les paramètres

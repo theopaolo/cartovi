@@ -3,6 +3,12 @@
 import re
 
 
+class Deferred(Exception):
+    """Levée par une source qui choisit de passer son tour (quota partagé déjà
+    consommé dans cette exécution) : ni erreur ni collecte, elle sera retentée
+    à la prochaine exécution."""
+
+
 def norm_commune(code):
     """Normalise un code commune INSEE : '1004' -> '01004', '2a004' -> '2A004'.
     Renvoie None si le code est inexploitable."""

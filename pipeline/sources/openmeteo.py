@@ -12,7 +12,7 @@ requise (CC BY 4.0).
 import time
 
 from .. import territories as terr
-from ..util import communes, complete_years, dep_of_commune
+from ..util import Deferred, communes, complete_years, dep_of_commune
 
 ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 CLIMATE = "https://climate-api.open-meteo.com/v1/climate"
@@ -54,7 +54,12 @@ def _points(ctx):
 
 
 def _daily(ctx, url, points, params):
-    """Itère (code_département, dict daily) sur tous les points, par paquets."""
+    """Itère (code_département, dict daily) sur tous les points, par paquets.
+    Une collecte coûte ~5 000 appels pondérés, soit le quota horaire : une seule
+    source Open-Meteo par exécution, l'autre est reportée à la suivante."""
+    if ctx.memo.get("openmeteo_used"):
+        raise Deferred("quota horaire Open-Meteo déjà utilisé dans cette exécution")
+    ctx.memo["openmeteo_used"] = True
     for i in range(0, len(points), CHUNK):
         if i:
             time.sleep(61)  # limite de 600 appels pondérés par minute

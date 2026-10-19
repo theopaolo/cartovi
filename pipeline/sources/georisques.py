@@ -15,8 +15,10 @@ def _pages(ctx, path, params):
     page = 1
     while True:
         res = ctx.http.json(f"{API}/{path}", {**params, "page": page, "page_size": 1000}, timeout=180)
-        yield from res.get("data") or []
-        if page >= (res.get("total_pages") or 0):
+        data = res.get("data") or []
+        yield from data
+        total = res.get("total_pages")
+        if (total is not None and page >= total) or (total is None and len(data) < 1000):
             return
         page += 1
 
@@ -103,6 +105,9 @@ class SolsPollues:
             counts[code] = len(
                 {s["identifiant_ssp"] for s in _pages(ctx, "ssp/instructions", {"code_departement": code})}
             )
-        ctx.log(f"  {sum(counts.values())} sites")
+        total = sum(counts.values())
+        ctx.log(f"  {total} sites")
+        if not 5_000 < total < 30_000:  # ~12 000 en 2026
+            raise ValueError(f"total de sites pollués invraisemblable : {total}")
         for code, v in per_1000km2(counts, ctx.territories).items():
             yield "sols_pollues", code, ctx.today.strftime("%Y-%m"), v
