@@ -1,6 +1,8 @@
-https://www.data.gouv.fr/api/1/datasets/statistiques-dvf/	[.resources[] | {title, format, url, filesize, last_modified}]
-https://www.data.gouv.fr/api/1/datasets/?q=vigieau&page_size=5	[.data[] | {slug, title, resources: [.resources[] | {title, format, url, last_modified}]}]
-https://georisques.gouv.fr/api/v1/installations_classees?departement=13&page_size=1&statutSeveso=Seveso%20seuil%20haut	{results, total_pages, s: [.data[] | .statutSeveso]}
-https://georisques.gouv.fr/api/v1/installations_classees?departement=13&page_size=1000	{results, total_pages, statuts: ([.data[] | .statutSeveso] | group_by(.) | map({(.[0]): length}) | add), etats: ([.data[] | .etatActivite] | group_by(.) | map({(.[0]): length}) | add)}
-https://georisques.gouv.fr/api/v1/ssp/instructions?departement=13&page_size=1	.
-https://www.data.gouv.fr/api/1/datasets/?q=catnat%20gaspar&page_size=5	[.data[] | {slug, title, resources: [.resources[] | {title, format, url, last_modified}]}]
+https://georisques.gouv.fr/api/v1/installations_classees?statutSeveso=1&page_size=1000	{results, total_pages, statuts: ([.data[] | (.statutSeveso // "null")] | group_by(.) | map({(.[0]): length}) | add), deps: ([.data[] | .codeInsee[0:2]] | unique | length), etats: ([.data[] | (.etatActivite // "null")] | group_by(.) | map({(.[0]): length}) | add)}
+https://georisques.gouv.fr/api/v1/installations_classees?statutSeveso=2&page_size=1000	{results, total_pages, statuts: ([.data[] | (.statutSeveso // "null")] | group_by(.) | map({(.[0]): length}) | add)}
+https://georisques.gouv.fr/api/v1/ssp/instructions?code_departement=13&page_size=2	{results, total_pages, keys: (.data[0] | keys), first: .data[0] | del(.geom)}
+https://georisques.gouv.fr/api/v1/ssp/conclusions_sis?code_departement=13&page_size=2	{results, total_pages, keys: (.data[0] | keys)}
+https://files.georisques.fr/GASPAR/gaspar.zip	
+https://api.vigieau.gouv.fr/api/data/departement?dateDebut=2025-08-01&dateFin=2025-08-02	[.[] | {date, n: (.departements | length), sample: .departements[0:3], codes: [.departements[].code] | join(",")}]
+https://hubeau.eaufrance.fr/api/v1/ecoulement/observations?code_departement=2A&date_observation_min=2025-05-01&date_observation_max=2025-09-30&size=3	{count, next, data: [.data[] | {code_station, date_observation, code_ecoulement, libelle_ecoulement, code_departement}]}
+https://climate-api.open-meteo.com/v1/climate?latitude=45,48&longitude=2,-3&start_date=2041-01-01&end_date=2041-01-03&models=MRI_AGCM3_2_S&daily=temperature_2m_max	.

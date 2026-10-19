@@ -1,0 +1,25 @@
+{
+  "as_of": "2026-10",
+  "note": "Sites en exploitation dotés d'un PPI (rayon 20 km depuis 2019). Fessenheim (arrêt 2020) exclu. Coordonnées recoupées sur trois sources (écart < 1 km).",
+  "sites": [
+    {"name": "Belleville-sur-Loire", "lat": 47.5089, "lon": 2.8757, "dep": "18", "reactors": 2, "ppi_km": 20},
+    {"name": "Blayais", "lat": 45.2576, "lon": -0.6906, "dep": "33", "reactors": 4, "ppi_km": 20},
+    {"name": "Bugey", "lat": 45.8011, "lon": 5.2661, "dep": "01", "reactors": 4, "ppi_km": 20},
+    {"name": "Cattenom", "lat": 49.4160, "lon": 6.2183, "dep": "57", "reactors": 4, "ppi_km": 20},
+    {"name": "Chinon", "lat": 47.2287, "lon": 0.1683, "dep": "37", "reactors": 4, "ppi_km": 20},
+    {"name": "Chooz", "lat": 50.0903, "lon": 4.7896, "dep": "08", "reactors": 2, "ppi_km": 20},
+    {"name": "Civaux", "lat": 46.4622, "lon": 0.6489, "dep": "86", "reactors": 2, "ppi_km": 20},
+    {"name": "Cruas-Meysse", "lat": 44.6328, "lon": 4.7508, "dep": "07", "reactors": 4, "ppi_km": 20},
+    {"name": "Dampierre-en-Burly", "lat": 47.7326, "lon": 2.5178, "dep": "45", "reactors": 4, "ppi_km": 20},
+    {"name": "Flamanville (dont EPR)", "lat": 49.5360, "lon": -1.8833, "dep": "50", "reactors": 3, "ppi_km": 20},
+    {"name": "Golfech", "lat": 44.1058, "lon": 0.8457, "dep": "82", "reactors": 2, "ppi_km": 20},
+    {"name": "Gravelines", "lat": 51.0128, "lon": 2.1393, "dep": "59", "reactors": 6, "ppi_km": 20},
+    {"name": "Nogent-sur-Seine", "lat": 48.5146, "lon": 3.5242, "dep": "10", "reactors": 2, "ppi_km": 20},
+    {"name": "Paluel", "lat": 49.8588, "lon": 0.6348, "dep": "76", "reactors": 4, "ppi_km": 20},
+    {"name": "Penly", "lat": 49.9761, "lon": 1.2102, "dep": "76", "reactors": 2, "ppi_km": 20},
+    {"name": "Saint-Alban", "lat": 45.4054, "lon": 4.7556, "dep": "38", "reactors": 2, "ppi_km": 20},
+    {"name": "Saint-Laurent-des-Eaux", "lat": 47.7202, "lon": 1.5802, "dep": "41", "reactors": 2, "ppi_km": 20},
+    {"name": "Tricastin", "lat": 44.3264, "lon": 4.7315, "dep": "26", "reactors": 4, "ppi_km": 20},
+    {"name": "La Hague (usine de retraitement Orano)", "lat": 49.6770, "lon": -1.8800, "dep": "50", "reactors": 0, "ppi_km": 20}
+  ]
+}
