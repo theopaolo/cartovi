@@ -88,6 +88,8 @@ def collect(con, sources, ctx, force=False):
             clean, problems = validate(rows, mod.INDICATORS, set(ctx.territories))
             n = db.insert_observations(con, clean, started)
             status = "rejected" if problems else "ok"
+            if status == "ok":
+                db.set_version(con, src)
             msg = "; ".join(problems)
             ctx.log(f"  {status} : {n} valeurs en {time.time() - t0:.0f}s {msg}")
         except Exception as e:  # noqa: BLE001 — une source ne doit jamais faire tomber les autres

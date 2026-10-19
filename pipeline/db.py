@@ -94,11 +94,10 @@ def upsert_territories(con, territories):
 def upsert_source(con, source, indicators):
     con.execute(
         """INSERT INTO source (id, label, provider, url, licence, refresh, version)
-           VALUES (:id, :label, :provider, :url, :licence, :refresh, :version)
+           VALUES (:id, :label, :provider, :url, :licence, :refresh, 0)
            ON CONFLICT(id) DO UPDATE SET label=excluded.label, provider=excluded.provider,
-             url=excluded.url, licence=excluded.licence, refresh=excluded.refresh,
-             version=excluded.version""",
-        {**source, "version": source.get("version", 1)},
+             url=excluded.url, licence=excluded.licence, refresh=excluded.refresh""",
+        source,
     )
     for ind in indicators:
         con.execute(
@@ -109,6 +108,12 @@ def upsert_source(con, source, indicators):
                  weight=excluded.weight, description=excluded.description""",
             {**ind, "source_id": source["id"]},
         )
+
+
+def set_version(con, source):
+    """À n'appeler qu'après une collecte réussie : la version enregistrée est celle
+    de la méthode qui a produit les données en base."""
+    con.execute("UPDATE source SET version=? WHERE id=?", (source.get("version", 1), source["id"]))
 
 
 def insert_observations(con, rows, fetched_at):

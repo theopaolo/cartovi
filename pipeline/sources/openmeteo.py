@@ -94,7 +94,7 @@ class Recent:
         "licence": "CC BY 4.0",
         "refresh": "mensuel",
         "max_age_days": 30,
-        "version": 2,  # 2 : points de population au lieu d'une grille
+        "version": 3,  # 2-3 : points de population au lieu d'une grille
     }
     YEARS = 5
     INDICATORS = [
