@@ -112,9 +112,9 @@ def export(con, out_dir, terrs):
     active = {m.SOURCE["id"]: m for m in SOURCES}
     indicators = []
     for ind in con.execute("SELECT * FROM indicator ORDER BY theme, id"):
-        if ind["source_id"] not in active:
-            continue  # source retirée du code : on garde l'historique en base, pas sur le site
-        meta = next(i for i in active[ind["source_id"]].INDICATORS if i["id"] == ind["id"])
+        meta = next((i for i in getattr(active.get(ind["source_id"]), "INDICATORS", []) if i["id"] == ind["id"]), None)
+        if meta is None:
+            continue  # indicateur retiré du code : historique conservé en base, absent du site
         rows = con.execute(
             "SELECT territory_code, value, period, fetched_at FROM latest WHERE indicator_id=?", (ind["id"],)
         ).fetchall()
