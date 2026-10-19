@@ -1,5 +1,6 @@
-https://georisques.gouv.fr/api/v1/installations_classees?departement=13&page_size=2
-https://georisques.gouv.fr/api/v1/gaspar/catnat?code_insee=33063&page_size=2
-https://www.data.gouv.fr/api/1/datasets/statistiques-dvf/
-https://archive-api.open-meteo.com/v1/archive?latitude=45,46&longitude=2,3&start_date=2024-01-01&end_date=2024-01-03&daily=precipitation_sum,et0_fao_evapotranspiration
-https://www.data.gouv.fr/api/1/datasets/?q=vigieau&page_size=3
+https://www.data.gouv.fr/api/1/datasets/statistiques-dvf/	[.resources[] | {title, format, url, filesize, last_modified}]
+https://www.data.gouv.fr/api/1/datasets/?q=vigieau&page_size=5	[.data[] | {slug, title, resources: [.resources[] | {title, format, url, last_modified}]}]
+https://georisques.gouv.fr/api/v1/installations_classees?departement=13&page_size=1&statutSeveso=Seveso%20seuil%20haut	{results, total_pages, s: [.data[] | .statutSeveso]}
+https://georisques.gouv.fr/api/v1/installations_classees?departement=13&page_size=1000	{results, total_pages, statuts: ([.data[] | .statutSeveso] | group_by(.) | map({(.[0]): length}) | add), etats: ([.data[] | .etatActivite] | group_by(.) | map({(.[0]): length}) | add)}
+https://georisques.gouv.fr/api/v1/ssp/instructions?departement=13&page_size=1	.
+https://www.data.gouv.fr/api/1/datasets/?q=catnat%20gaspar&page_size=5	[.data[] | {slug, title, resources: [.resources[] | {title, format, url, last_modified}]}]

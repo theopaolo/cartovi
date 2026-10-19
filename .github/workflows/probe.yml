@@ -14,11 +14,13 @@ jobs:
       - env:
           N: "2500"
         run: |
-          for u in $(grep -v '^#' .github/probe.txt); do
+          # une ligne = URL [TAB filtre jq] ; sans filtre : début brut de la réponse
+          grep -v '^#' .github/probe.txt | while IFS=$'\t' read -r u q; do
+            [ -z "$u" ] && continue
             echo "=================== $u"
-            curl -sSL --max-time 120 -A "cartovi-probe" -o /tmp/r -w "HTTP %{http_code} | %{content_type} | %{size_download} octets | %{url_effective}\n" "$u" || true
-            file /tmp/r
-            if gzip -t /tmp/r 2>/dev/null; then zcat /tmp/r | head -c "$N"
+            curl -sSL --max-time 300 -A "cartovi-probe" -o /tmp/r -w "HTTP %{http_code} | %{content_type} | %{size_download} octets | %{url_effective}\n" "$u" || true
+            if [ -n "$q" ]; then jq -c "$q" /tmp/r | head -c 6000
+            elif gzip -t /tmp/r 2>/dev/null; then zcat /tmp/r | head -c "$N"
             elif unzip -l /tmp/r >/dev/null 2>&1; then unzip -l /tmp/r | head -20; f=$(unzip -Z1 /tmp/r | head -1); unzip -p /tmp/r "$f" | head -c "$N"
             else head -c "$N" /tmp/r; fi
             echo
