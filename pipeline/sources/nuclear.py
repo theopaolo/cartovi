@@ -15,8 +15,8 @@ from .. import geo
 SOURCE = {
     "id": "nucleaire",
     "label": "Sites nucléaires dotés d'un Plan particulier d'intervention",
-    "provider": "ASN / EDF / Orano (liste statique, vérifiée manuellement)",
-    "url": "https://www.asn.fr/l-asn-controle/carte-des-installations-nucleaires",
+    "provider": "ASNR / EDF / Orano (liste statique, vérifiée manuellement)",
+    "url": "https://www.asnr.fr",
     "licence": "Données publiques",
     "refresh": "à chaque mise en service ou arrêt définitif",
     "max_age_days": 6,

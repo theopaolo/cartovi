@@ -47,6 +47,7 @@ web/                                   HTML + CSS + JS (modules ES), sans framew
 - **Rythme propre à chaque source** (`max_age_days`). Les prix DVF changent deux fois par
   an et les projections climatiques jamais : inutile de les retélécharger chaque semaine.
   Ça ménage aussi les quotas (Open-Meteo : 10 000 appels pondérés par jour et par IP).
+  Un champ `version` par source force la recollecte quand la méthode de calcul change.
 - **Front sans framework.** 96 chemins SVG pré-projetés par le pipeline, donc aucune
   bibliothèque cartographique côté client. Le score est calculé dans le navigateur pour
   que les pondérations soient réglables.
@@ -57,13 +58,13 @@ web/                                   HTML + CSS + JS (modules ES), sans framew
 |---|---|---|---|---|
 | Eau & climat | Jours de restriction d'eau sévère (alerte renforcée ou crise), moyenne 5 ans | VigiEau (MTE) | 7 j | ↓ |
 | | Cours d'eau sans écoulement ou à sec en été, % des observations sur 5 ans | ONDE / Hub'Eau (OFB) | 7 j | ↓ |
-| | Bilan hydrique climatique P − ETP, mm/an sur 5 ans | Open-Meteo (ERA5) | 30 j | ↑ |
+| | Bilan hydrique climatique P − ETP, mm/an sur 5 ans, aux communes représentatives de la population | Open-Meteo (ERA5) | 30 j | ↑ |
 | | Jours ≥ 30 °C projetés en 2041–2050 | Open-Meteo (CMIP6 MRI-AGCM3-2-S) | 365 j | ↓ |
-| Foncier & densité | Prix médian des maisons, €/m² | Statistiques DVF (DGFiP / Etalab) | 7 j | ↓ |
+| Foncier & densité | Prix médian des maisons, €/m² | Statistiques DVF (DGFiP / Etalab) | 6 j | ↓ |
 | | Densité de population | geo.api.gouv.fr (INSEE) | 28 j | ↓ |
-| Terres & nature | Consommation d'espaces naturels, agricoles et forestiers, ha/an pour 100 km² | Cerema (fichiers fonciers) | 7 j | ↓ |
+| Terres & nature | Consommation d'espaces naturels, agricoles et forestiers, ha/an pour 100 km² | Cerema (fichiers fonciers) | 6 j | ↓ |
 | Risques & pollution | Sites Seveso (seuils haut et bas) pour 1 000 km² | Géorisques (ICPE) | 28 j | ↓ |
-| | Part du territoire à moins de 20 km d'un site nucléaire (PPI) | liste statique ASN / EDF / Orano + calcul géométrique | 7 j | ↓ |
+| | Part du territoire à moins de 20 km d'un site nucléaire (PPI) | liste statique ASNR / EDF / Orano + calcul géométrique | 6 j | ↓ |
 | | Arrêtés de catastrophe naturelle par commune sur 20 ans | GASPAR (Géorisques) | 7 j | ↓ |
 | | Sites et sols pollués (instructions) pour 1 000 km² | Géorisques (SSP) | 28 j | ↓ |
 
