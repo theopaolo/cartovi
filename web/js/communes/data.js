@@ -4,6 +4,24 @@ import { getJSON } from '../data.js';
 const DIR = 'data/communes/';
 const SAFE_FILE = /^[\w.-]+\.json$/;
 
+const rad = (d) => (d * Math.PI) / 180;
+/** Distance à vol d'oiseau en km (formule de haversine). */
+function haversineKm(lon1, lat1, lon2, lat2) {
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lon2 - lon1) / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(a));
+}
+
+/**
+ * Kilomètres par unité du viewBox, déduits de deux villes de référence éloignées (distance réelle ÷ distance sur la carte).
+ * La projection est conforme : l'échelle varie peu (≈ 1,165 km/unité) sur la métropole.
+ */
+function kmPerUnit(hubs) {
+  if (hubs.length < 2) return 1.165;
+  const a = hubs[0];
+  const b = hubs.reduce((far, h) => (Math.hypot(h.x - a.x, h.y - a.y) > Math.hypot(far.x - a.x, far.y - a.y) ? h : far), hubs[1]);
+  return haversineKm(a.lon, a.lat, b.lon, b.lat) / Math.hypot(b.x - a.x, b.y - a.y);
+}
+
 /** Minuscules sans accents : clé de tri et de recherche. */
 export const fold = (s) => String(s).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -19,6 +37,7 @@ export async function loadIndex() {
     label: dup.get(h.name) > 1 ? `${h.name} (${String(h.code).slice(0, 2)})` : h.name,
     key: fold(h.name),
   }));
+  const scale = kmPerUnit(hubs);
   const regions = raw.regions
     .filter((r) => r && r.code && SAFE_FILE.test(r.file || ''))
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
@@ -26,6 +45,7 @@ export async function loadIndex() {
     generated_at: raw.generated_at,
     reference_day: raw.reference_day,
     viewBox: raw.viewBox || '0 0 1000 931',
+    kmPerUnit: scale,
     radius: { gare: 6, vote: 10, culture: 15, ...raw.radius_km },
     columns: raw.columns,
     hubs,
@@ -39,7 +59,7 @@ export async function loadIndex() {
 export const defaultHub = (index) => index.hubs.find((h) => h.key === 'lyon') || index.hubs[0];
 
 /** Une ligne du fichier régional → commune. Renvoie null si les champs indispensables manquent. */
-function toCommune(row, cols) {
+function toCommune(row, cols, hubs, scale) {
   if (!Array.isArray(row)) return null;
   const c = {};
   for (let i = 0; i < cols.length; i++) c[cols[i]] = row[i];
@@ -53,6 +73,9 @@ function toCommune(row, cols) {
   c.reach = [];
   for (const [k, v] of Object.entries(c.villes || {})) if (Array.isArray(v)) c.reach.push(Number(k), v[0], v[1], v[2]);
   delete c.villes;
+  // distance (km) à la ville de référence la plus proche, calculée une fois : sert au filtre « distance minimale au centre »
+  c.dmin = Infinity;
+  for (const hb of hubs) c.dmin = Math.min(c.dmin, Math.hypot(c.x - hb.x, c.y - hb.y) * scale);
   return c;
 }
 
@@ -70,7 +93,7 @@ export function createStore(index) {
         code,
         getJSON(DIR + region.file)
           .then((raw) => {
-            const list = (raw?.rows || []).map((r) => toCommune(r, index.columns)).filter(Boolean);
+            const list = (raw?.rows || []).map((r) => toCommune(r, index.columns, index.hubs, index.kmPerUnit)).filter(Boolean);
             for (const c of list) {
               c.region = code;
               byCode.set(c.code, c);

@@ -124,6 +124,7 @@ function showErrors() {
 
 let lastCommunes = null;
 let lastRegions = '';
+let lastBasis = '';
 let shownDetail = '';
 let shownCode = null;
 
@@ -139,11 +140,14 @@ function render() {
   if (listChanged) {
     lastCommunes = communes;
     ui.map.setCommunes(communes);
-    ui.controls.setMedian(medianLeft(communes));
+  }
+  if (listChanged || crit.leftBasis !== lastBasis) {
+    lastBasis = crit.leftBasis;
+    ui.controls.setMedian(medianLeft(communes, crit.leftBasis));
   }
 
-  const hubIdx = crit.hub ? index.hubByCode.get(crit.hub).i : -1;
-  results = sortResults(applyFilters(communes, crit, hubIdx), state.sort);
+  const hubIdx = hubIdxOf();
+  results = sortResults(applyFilters(communes, crit, hubIdx, hubIdx >= 0 ? index.hubs[hubIdx] : null, index.kmPerUnit), state.sort);
   resultMap = null;
   ui.map.setHits(results);
   ui.map.setHub(hubIdx);
@@ -163,6 +167,7 @@ function paintResults() {
     loaded: store.communesOf(state.crit.regions).length,
     loading,
     anyHub: !state.crit.hub,
+    basis: state.crit.leftBasis,
     noRegion: !state.crit.regions.length,
   });
 }
@@ -196,10 +201,10 @@ function renderSelection() {
   if (shown.code !== shownCode) ui.map.reveal(shown); // nouvelle sélection (tableau, adresse, retour arrière) : la rendre visible sur la carte
   shownCode = shown.code;
   const r = resultOf(shown.code) || null;
-  const sig = `${shown.code}|${r ? `${r.hub}.${r.min}.${r.trains}` : '-'}|${hubIdxOf()}`;
+  const sig = `${shown.code}|${r ? `${r.hub}.${r.min}.${r.trains}` : '-'}|${hubIdxOf()}|${state.crit.leftBasis}`;
   if (sig === shownDetail) return; // inchangée : on ne reconstruit pas la fiche (elle garde son défilement)
   shownDetail = sig;
-  ui.detail.show({ c: shown, result: r, hubIdx: hubIdxOf(), dep: deps.get(shown.dep), payload });
+  ui.detail.show({ c: shown, result: r, hubIdx: hubIdxOf(), dep: deps.get(shown.dep), payload, basis: state.crit.leftBasis });
 }
 
 function select(code, how) {

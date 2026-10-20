@@ -6,6 +6,7 @@ import { SIZES, STOPS } from './filter.js';
 import { fmtDay, fmtDuration, fmtPct, plural } from './text.js';
 
 const num = (n) => fmtNumber(n);
+const NATIONAL_LEFT = 32.4; // part de gauche de la France entière aux européennes 2024 (% des exprimés)
 
 export function createControls(root, { index, onChange, onReset, onCopy }) {
   const setters = []; // chaque contrôle y enregistre sa fonction de mise à jour
@@ -118,6 +119,16 @@ export function createControls(root, { index, onChange, onReset, onCopy }) {
   const sMin = slider({ key: 'popMin', label: 'Population minimale', stops: STOPS.popMin, text: (v) => (v ? `${num(v)}${NBSP}hab. ou plus` : 'aucun minimum'), off: (v) => !v });
   const sMax = slider({ key: 'popMax', label: 'Population maximale', stops: STOPS.popMax, text: (v) => (v < Infinity ? `moins de ${num(v)}${NBSP}hab.` : 'aucun maximum'), off: (v) => v === Infinity });
   const sTime = slider({ key: 'maxMin', label: 'Temps de trajet direct maximum', min: 15, max: 150, step: 5, text: fmtDuration, off: () => false });
+  const sDist = slider({
+    key: 'distMin',
+    label: 'Distance minimale au centre de la ville',
+    note: 'À vol d’oiseau : écarte la ville de référence et sa banlieue. En mode « n’importe quelle ville », vaut pour chacune d’elles.',
+    min: 0,
+    max: 60,
+    step: 5,
+    text: (v) => (v ? `${v}${NBSP}km minimum` : 'aucune'),
+    off: (v) => !v,
+  });
   const sTrains = slider({
     key: 'trainsMin',
     label: 'Trains par jour',
@@ -136,12 +147,22 @@ export function createControls(root, { index, onChange, onReset, onCopy }) {
   });
   const sLeft = slider({
     key: 'leftMin',
-    label: `Part de gauche à ${R.vote}${NBSP}km`,
-    note: 'Listes de gauche aux européennes 2024.',
+    label: 'Part de gauche minimale',
+    note: ' ',
     min: 0,
     max: 70,
     text: (v) => (v ? `${v}${NBSP}% ou plus` : 'aucun minimum'),
     off: (v) => !v,
+  });
+  const basisRadios = [
+    ['commune', 'dans la commune'],
+    ['zone', `dans un rayon de ${R.vote}${NBSP}km`],
+  ].map(([value, text]) => {
+    const input = h('input', { type: 'radio', name: 'left-basis', value, onchange: () => onChange({ leftBasis: value }) });
+    return { value, input, el: h('label', { class: 'check' }, input, h('span', {}, text)) };
+  });
+  setters.push((crit) => {
+    for (const r of basisRadios) r.input.checked = r.value === crit.leftBasis;
   });
   const sCine = slider({ key: 'cinemasMin', label: 'Cinémas', stops: STOPS.cinemasMin, text: (v) => (v ? `${plural(v, 'cinéma')} ou plus` : 'aucun minimum'), off: (v) => !v });
   const sScene = slider({ key: 'scenesMin', label: 'Scènes (théâtres, salles de spectacle)', stops: STOPS.scenesMin, text: (v) => (v ? `${plural(v, 'scène')} ou plus` : 'aucun minimum'), off: (v) => !v });
@@ -174,11 +195,16 @@ export function createControls(root, { index, onChange, onReset, onCopy }) {
       any.el,
       sTime.el,
       h('p', { class: 'wnote' }, `Trajet direct (sans correspondance) le plus court, ${fmtDay(index.reference_day)}.`),
+      sDist.el,
       sTrains.el,
       sKm.el,
     ),
     fieldset('Taille de la commune', h('div', { class: 'pills' }, sizeButtons), sMin.el, sMax.el),
-    fieldset('Climat politique', sLeft.el),
+    fieldset(
+      'Climat politique',
+      h('div', { class: 'radios', role: 'radiogroup', 'aria-label': 'Base de la part de gauche' }, h('span', { class: 'wlabel' }, 'Mesurée'), basisRadios.map((r) => r.el)),
+      sLeft.el,
+    ),
     fieldset(`Culture à moins de ${R.culture}${NBSP}km`, sCine.el, sScene.el, label.el),
     fieldset('Prix', sPrice.el, unknown.el),
   );
@@ -193,8 +219,9 @@ export function createControls(root, { index, onChange, onReset, onCopy }) {
       if (!r) return;
       r.state.textContent = state === 'loading' ? ' (chargement…)' : state === 'error' ? ' (indisponible)' : '';
     },
+    /** Repère sous le curseur : moyenne nationale et médiane des communes affichées, sur la base choisie. */
     setMedian(v) {
-      sLeft.note.textContent = `Listes de gauche aux européennes 2024.${v == null ? '' : ` Repère : médiane des communes affichées, ${fmtPct(v)}.`}`;
+      sLeft.note.textContent = `Listes de gauche aux européennes 2024 : ${fmtPct(NATIONAL_LEFT)} des exprimés en France.${v == null ? '' : ` Médiane des communes affichées : ${fmtPct(v)}.`}`;
     },
     flash(text) {
       flashEl.textContent = text;

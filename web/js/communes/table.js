@@ -1,7 +1,7 @@
 // table.js — résultats : décompte, choix du tri et tableau des communes (vue principale, accessible au clavier).
 // Le tableau est plafonné à PAGE lignes (« Afficher plus ») : 35 000 lignes de DOM sinon.
 import { h } from '../dom.js';
-import { fmtNumber } from '../format.js';
+import { NBSP, fmtNumber } from '../format.js';
 import { SORTS } from './filter.js';
 import { cultureText, fmtDuration, fmtPct, fmtPop, fmtPrice, plural, stationText, trainsText } from './text.js';
 
@@ -13,16 +13,18 @@ const COLS = [
   { id: 'pop', sort: 'pop', label: 'Population', val: true },
   { id: 'time', sort: 'time', label: 'Train direct' },
   { id: 'km', sort: 'km', label: 'Gare' },
-  { id: 'gauche', sort: 'gauche', label: '% gauche à 10 km', val: true },
+  { id: 'gauche', sort: 'gauche', label: '% gauche', val: true },
   { id: 'culture', sort: 'culture', label: 'Culture à 15 km' },
   { id: 'prix', sort: 'prix', label: 'Prix maisons', val: true },
 ];
 
 export function createResults(root, { index, onSort, onSelect }) {
+  const R = index.radius.vote;
+  const basisText = (b) => (b === 'zone' ? `${R}${NBSP}km` : 'commune');
   let list = [];
   let shown = PAGE;
   let sort = { key: 'time', dir: 1 };
-  let ctx = { anyHub: false };
+  let ctx = { anyHub: false, basis: 'commune' };
   let selected = null;
 
   const count = h('p', { class: 'res-count', 'aria-hidden': 'true' });
@@ -45,8 +47,9 @@ export function createResults(root, { index, onSort, onSelect }) {
     {},
     COLS.map((c) => {
       const arrow = h('span', { class: 'arrow', 'aria-hidden': 'true' });
-      const th = h('th', { scope: 'col', 'aria-sort': 'none', class: `c-${c.id}${c.val ? ' c-val' : ''}` }, h('button', { type: 'button', onclick: () => clickHead(c) }, h('span', {}, c.label), arrow));
-      heads.set(c.sort, { th, arrow });
+      const label = h('span', {}, c.label);
+      const th = h('th', { scope: 'col', 'aria-sort': 'none', class: `c-${c.id}${c.val ? ' c-val' : ''}` }, h('button', { type: 'button', onclick: () => clickHead(c) }, label, arrow));
+      heads.set(c.sort, { th, arrow, label });
       return th;
     }),
   );
@@ -95,7 +98,13 @@ export function createResults(root, { index, onSort, onSelect }) {
         h('span', { class: 'narrow-only', 'aria-hidden': 'true' }, st.name ? `${st.name} (${st.km})` : `gare à ${st.km}`),
       ),
       h('td', { class: 'c-km' }, st.name ? h('span', {}, st.name) : null, h('span', { class: 'sub' }, st.name ? st.km : `gare à ${st.km}`)),
-      h('td', { class: 'c-gauche c-val' }, fmtPct(c.gauche_10km)),
+      h(
+        'td',
+        { class: 'c-gauche c-val' },
+        fmtPct(r.left),
+        // l'autre base, pour comparer
+        h('span', { class: 'sub' }, `${basisText(ctx.basis === 'zone' ? 'commune' : 'zone')} : ${fmtPct(ctx.basis === 'zone' ? c.gauche_commune : c.gauche_10km)}`),
+      ),
       h('td', { class: 'c-culture' }, cultureText(c)),
       h('td', { class: 'c-prix c-val' }, fmtPrice(c.prix)),
     );
@@ -115,6 +124,7 @@ export function createResults(root, { index, onSort, onSelect }) {
     select.value = sort.key;
     dirBtn.textContent = sort.dir > 0 ? '▲ croissant' : '▼ décroissant';
     dirBtn.setAttribute('aria-label', `Ordre ${sort.dir > 0 ? 'croissant' : 'décroissant'} : inverser`);
+    heads.get('gauche').label.textContent = `% gauche (${basisText(ctx.basis)})`;
     for (const [key, { th, arrow }] of heads) {
       th.setAttribute('aria-sort', key === sort.key ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none');
       arrow.textContent = key === sort.key ? (sort.dir > 0 ? '\u00a0▲' : '\u00a0▼') : '';

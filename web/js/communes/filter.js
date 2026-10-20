@@ -8,7 +8,7 @@
 
 // Crans des curseurs « à paliers » (population, trains, culture, prix…). Infinity = pas de limite.
 export const STOPS = {
-  popMin: [0, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000],
+  popMin: [0, 100, 200, 500, 1000, 1500, 2000, 5000, 10000, 20000, 50000, 100000],
   popMax: [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, Infinity],
   trainsMin: [0, 1, 2, 3, 5, 8, 10, 15, 20, 30, 50],
   kmMax: [0.5, 1, 2, 3, 4, 5, Infinity],
@@ -32,7 +32,9 @@ export const DEFAULTS = {
   maxMin: 60,
   popMin: 0,
   popMax: Infinity,
-  leftMin: 40,
+  leftBasis: 'commune', // base de la part de gauche : 'commune' ou 'zone' (rayon de 10 km)
+  leftMin: 38,
+  distMin: 15, // km minimum entre la commune et le centre de la ville de référence
   trainsMin: 0,
   kmMax: Infinity,
   cinemasMin: 0,
@@ -49,35 +51,42 @@ export const DEFAULT_SORT = { key: 'time', dir: 1 };
  * @param {object[]} communes  communes normalisées (data.js)
  * @param {object} crit  critères (DEFAULTS)
  * @param {number} hubIdx  indice de la ville de référence dans index.json, ou -1 pour n'importe laquelle
- * @returns {{c:object, hub:number, min:number, trains:number, km:number}[]}
+ * @param {{x:number,y:number}|null} hub  centre de la ville de référence choisie (null si hubIdx = -1)
+ * @param {number} kmPerUnit  kilomètres par unité du viewBox
+ * @returns {{c:object, hub:number, min:number, trains:number, km:number, left:number|null}[]}
  */
-export function applyFilters(communes, crit, hubIdx) {
-  const { maxMin, popMin, popMax, leftMin, trainsMin, kmMax, cinemasMin, scenesMin, label, priceMax, priceUnknown } = crit;
+export function applyFilters(communes, crit, hubIdx, hub, kmPerUnit) {
+  const { maxMin, popMin, popMax, leftBasis, leftMin, distMin, trainsMin, kmMax, cinemasMin, scenesMin, label, priceMax, priceUnknown } = crit;
+  const key = leftBasis === 'zone' ? 'gauche_10km' : 'gauche_commune';
   const out = [];
   for (const c of communes) {
     // critères propres à la commune d'abord (peu coûteux), trajet ensuite
     if (c.pop < popMin || c.pop >= popMax) continue;
-    if (leftMin > 0 && !(c.gauche_10km >= leftMin)) continue; // sans donnée : écartée dès qu'un minimum est fixé
+    const left = c[key];
+    if (leftMin > 0 && !(left >= leftMin)) continue; // sans donnée : écartée dès qu'un minimum est fixé
     if (c.cinemas < cinemasMin || c.scenes < scenesMin) continue;
     if (label && !(c.labels > 0)) continue;
     if (priceMax < Infinity && (c.prix == null ? !priceUnknown : c.prix > priceMax)) continue;
+    // à distance minimale du centre : de la ville choisie, ou de toutes les villes de référence en mode « n'importe laquelle »
+    if (distMin > 0 && (hub ? Math.hypot(c.x - hub.x, c.y - hub.y) * kmPerUnit : c.dmin) < distMin) continue;
 
     const r = c.reach;
-    let hub = -1;
+    let best = -1;
     let min = Infinity;
     let trains = 0;
     let km = 0;
     for (let i = 0; i < r.length; i += 4) {
       if (hubIdx >= 0 && r[i] !== hubIdx) continue;
+      if (distMin > 0 && r[i + 1] === 0) continue; // gare dans la ville de référence : liaison intra-urbaine
       if (r[i + 1] > maxMin || r[i + 2] < trainsMin || r[i + 3] > kmMax) continue;
       if (r[i + 1] < min || (r[i + 1] === min && r[i + 2] > trains)) {
-        hub = r[i];
+        best = r[i];
         min = r[i + 1];
         trains = r[i + 2];
         km = r[i + 3];
       }
     }
-    if (hub >= 0) out.push({ c, hub, min, trains, km });
+    if (best >= 0) out.push({ c, hub: best, min, trains, km, left: left ?? null });
   }
   return out;
 }
@@ -89,7 +98,7 @@ export const SORTS = {
   nom: { label: 'Nom', first: 1, val: (r) => r.c.key },
   pop: { label: 'Population', first: -1, val: (r) => r.c.pop },
   km: { label: 'Distance à la gare', first: 1, val: (r) => r.km },
-  gauche: { label: '% gauche à 10 km', first: -1, val: (r) => r.c.gauche_10km },
+  gauche: { label: 'Part de gauche', first: -1, val: (r) => r.left },
   culture: { label: 'Offre culturelle', first: -1, val: (r) => r.c.cult },
   prix: { label: 'Prix des maisons', first: 1, val: (r) => r.c.prix },
 };
@@ -113,8 +122,9 @@ export function fixPopulation(crit, changed) {
   else crit.popMin = [...STOPS.popMin].reverse().find((v) => v < crit.popMax) ?? 0;
 }
 
-/** Médiane de la part de gauche à 10 km (repère affiché sous le curseur). */
-export function medianLeft(communes) {
-  const v = communes.map((c) => c.gauche_10km).filter(Number.isFinite).sort((a, b) => a - b);
+/** Médiane de la part de gauche sur la base choisie (repère affiché sous le curseur). */
+export function medianLeft(communes, basis) {
+  const key = basis === 'zone' ? 'gauche_10km' : 'gauche_commune';
+  const v = communes.map((c) => c[key]).filter(Number.isFinite).sort((a, b) => a - b);
   return v.length ? v[Math.floor(v.length / 2)] : null;
 }

@@ -338,6 +338,8 @@ select:disabled { opacity: 0.6; }
 .fsec { min-width: 0; margin: 0; padding: 10px 0 2px; border: 0; border-top: 1px solid var(--line); }
 .fsec legend { padding: 0; margin-bottom: 6px; font-weight: 700; font-size: 0.875rem; }
 .fsec > .check { margin: 4px 0 8px; }
+.radios { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-bottom: 6px; }
+.radios .check { margin: 0; }
 .fsec-tools { display: flex; gap: 6px; margin-bottom: 6px; }
 .regions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-bottom: 8px; }
 .regions .check { align-items: flex-start; font-size: 0.8125rem; line-height: 1.25; }
@@ -420,7 +422,7 @@ select:disabled { opacity: 0.6; }
 .kv.stack { grid-template-columns: minmax(0, 1fr); gap: 0; }
 .kv.stack dd { margin-bottom: 8px; text-align: left; }
 .kv.stack .bar { margin-top: 3px; }
-.kv .sub { display: block; color: var(--muted); font-size: 0.75rem; font-weight: 400; }
+.kv dt .sub, .kv .sub { display: block; color: var(--muted); font-size: 0.75rem; font-weight: 400; }
 .links { margin: 6px 0 0; padding: 0; list-style: none; font-size: 0.875rem; }
 .links li { display: flex; justify-content: space-between; gap: 12px; margin: 0 -6px; padding: 4px 6px; border-radius: 6px; }
 .links li > span:last-child { text-align: right; font-variant-numeric: tabular-nums; }

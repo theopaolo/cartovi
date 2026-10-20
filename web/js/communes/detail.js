@@ -23,8 +23,8 @@ export function createDetail(root, { index, onClose }) {
     hide: () => {
       root.hidden = true;
     },
-    /** ctx : { c, result (liaison retenue ou null), hubIdx (-1 = toutes), dep (territoire de map.json), payload (indicateurs) } */
-    show({ c, result, hubIdx, dep, payload }) {
+    /** ctx : { c, result (liaison retenue ou null), hubIdx (-1 = toutes), dep (territoire de map.json), payload (indicateurs), basis (base de la part de gauche) } */
+    show({ c, result, hubIdx, dep, payload, basis }) {
       root.hidden = false;
       title.textContent = `${c.nom} (${c.dep})`;
       sub.textContent = [dep?.name, dep?.region, fmtPop(c.pop)].filter(Boolean).join(' · ');
@@ -35,7 +35,7 @@ export function createDetail(root, { index, onClose }) {
           result ? 'Correspond aux critères' : 'Ne correspond pas aux critères actuels',
         ),
         trains(c, hubIdx, result, index, R),
-        politics(c, R),
+        politics(c, R, basis),
         h('section', {}, h('h3', {}, `Culture à moins de ${R.culture}${NBSP}km`), culture(c)),
         h(
           'section',
@@ -88,13 +88,13 @@ function linkList(links, hubIdx, result) {
   );
 }
 
-function politics(c, R) {
-  const line = (label, v) => [h('dt', {}, label), h('dd', {}, fmtPct(v), v == null ? null : bar(v))];
+function politics(c, R, basis) {
+  const line = (label, v, on) => [h('dt', {}, label, on ? h('span', { class: 'sub' }, 'base du filtre') : null), h('dd', {}, fmtPct(v), v == null ? null : bar(v))];
   return h(
     'section',
     {},
     h('h3', {}, 'Climat politique'),
-    h('dl', { class: 'kv stack' }, ...line('Gauche, dans la commune', c.gauche_commune), ...line(`Gauche, dans un rayon de ${R.vote}${NBSP}km`, c.gauche_10km)),
+    h('dl', { class: 'kv stack' }, ...line('Gauche, dans la commune', c.gauche_commune, basis !== 'zone'), ...line(`Gauche, dans un rayon de ${R.vote}${NBSP}km`, c.gauche_10km, basis === 'zone')),
     h('p', { class: 'muted small' }, 'Part des listes de gauche aux européennes 2024 : un électorat, pas la politique municipale.'),
   );
 }

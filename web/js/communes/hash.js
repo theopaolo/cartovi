@@ -1,6 +1,7 @@
 // hash.js — état de la page « Communes » dans le fragment d'URL (seules les valeurs ≠ défaut y figurent) :
-//   #r=84,75&v=69123&t=60&g=40&px=2500&s=-pop&c=69381
-// r régions · v ville de référence (code, ou « tous ») · t minutes max · pmin/pmax population · g % gauche min
+//   #r=84,75&v=69123&t=60&g=40&gb=zone&dm=20&px=2500&s=-pop&c=69381
+// r régions · v ville de référence (code, ou « tous ») · t minutes max · dm distance min au centre (km)
+// pmin/pmax population · g % gauche min · gb base de la part de gauche (« zone » = rayon de 10 km)
 // tr trains/j min · km distance gare max · ci/sc cinémas/scènes min · lb lieu labellisé · px prix max
 // pu 0 = écarter les prix inconnus · s tri (« - » devant = décroissant) · c commune sélectionnée
 import { SORTS } from './filter.js';
@@ -8,6 +9,7 @@ import { SORTS } from './filter.js';
 // clé du fragment → [champ des critères, minimum, maximum]
 const NUM = {
   t: ['maxMin', 15, 150],
+  dm: ['distMin', 0, 500],
   pmin: ['popMin', 0, 1e7],
   pmax: ['popMax', 1, 1e7],
   g: ['leftMin', 0, 100],
@@ -46,6 +48,8 @@ export function parseHash(hash, defaults, defaultSort, known) {
     } else if (k === 'v') {
       if (v === 'tous') crit.hub = null;
       else if (known.hubs.has(v)) crit.hub = v;
+    } else if (k === 'gb') {
+      if (v === 'zone' || v === 'commune') crit.leftBasis = v;
     } else if (k === 'lb') crit.label = v === '1';
     else if (k === 'pu') crit.priceUnknown = v !== '0';
     else if (k === 's') {
@@ -63,6 +67,7 @@ export function hashFor({ crit, sort, selected }, defaults, defaultSort) {
   if (!sameRegions) parts.push(`r=${[...crit.regions].sort().join(',')}`);
   if (crit.hub !== defaults.hub) parts.push(`v=${crit.hub ? encodeURIComponent(crit.hub) : 'tous'}`);
   for (const [k, [field]] of Object.entries(NUM)) if (crit[field] !== defaults[field]) parts.push(`${k}=${crit[field]}`);
+  if (crit.leftBasis !== defaults.leftBasis) parts.push(`gb=${crit.leftBasis}`);
   if (crit.label !== defaults.label) parts.push(`lb=${crit.label ? 1 : 0}`);
   if (crit.priceUnknown !== defaults.priceUnknown) parts.push(`pu=${crit.priceUnknown ? 1 : 0}`);
   if (sort.key !== defaultSort.key || sort.dir !== defaultSort.dir) {
