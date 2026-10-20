@@ -1,5 +1,5 @@
 // data.js — chargement et normalisation des deux fichiers de données.
-async function getJSON(url) {
+export async function getJSON(url) {
   const r = await fetch(url, { cache: 'no-cache' }); // revalidation : le CI régénère les données chaque semaine
   if (!r.ok) throw new Error(`${url} : HTTP ${r.status}`);
   return r.json();
