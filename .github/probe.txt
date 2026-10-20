@@ -1,0 +1,4 @@
+https://www.data.gouv.fr/api/1/datasets/?q=elections%20europeennes%202024%20resultats&page_size=4	[.data[] | {slug, title, org: .organization.name, resources: [.resources[] | {title, format, url, filesize, last_modified}][0:8]}]
+https://www.data.gouv.fr/api/1/datasets/?q=base%20des%20lieux%20et%20equipements%20culturels&page_size=3	[.data[] | {slug, title, org: .organization.name, resources: [.resources[] | {title, format, url, filesize, last_modified}][0:8]}]
+https://www.data.gouv.fr/api/1/datasets/?q=horaires%20sncf%20gtfs&page_size=4	[.data[] | {slug, title, org: .organization.name, resources: [.resources[] | {title, format, url, filesize, last_modified}][0:8]}]
+https://transport.data.gouv.fr/api/datasets?type=public-transit	[.[] | select((.aom.name // "" | test("SNCF";"i")) or (.title | test("SNCF|TER|Intercit|TGV";"i"))) | {id, title, slug, resources: [.resources[] | {title, format, url, updated}][0:4]}][0:8]
