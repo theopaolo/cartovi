@@ -1,4 +1,4 @@
-https://www.data.gouv.fr/api/1/datasets/?q=elections%20europeennes%202024%20resultats&page_size=4	[.data[] | {slug, title, org: .organization.name, resources: [.resources[] | {title, format, url, filesize, last_modified}][0:8]}]
-https://www.data.gouv.fr/api/1/datasets/?q=base%20des%20lieux%20et%20equipements%20culturels&page_size=3	[.data[] | {slug, title, org: .organization.name, resources: [.resources[] | {title, format, url, filesize, last_modified}][0:8]}]
-https://www.data.gouv.fr/api/1/datasets/?q=horaires%20sncf%20gtfs&page_size=4	[.data[] | {slug, title, org: .organization.name, resources: [.resources[] | {title, format, url, filesize, last_modified}][0:8]}]
-https://transport.data.gouv.fr/api/datasets?type=public-transit	[.[] | select((.aom.name // "" | test("SNCF";"i")) or (.title | test("SNCF|TER|Intercit|TGV";"i"))) | {id, title, slug, resources: [.resources[] | {title, format, url, updated}][0:4]}][0:8]
+https://transport.data.gouv.fr/api/datasets/6853c089b3ed5781f6adfdf7	[.resources[] | {title, format, url, original_url, updated, filesize}]
+https://www.data.gouv.fr/api/1/datasets/?q=r%C3%A9sultats%20%C3%A9lections%20europ%C3%A9ennes%209%20juin%202024&organization=534fff81a3a7292c64a77e5c&page_size=4	[.data[] | {slug, title, org: .organization.name, resources: [.resources[] | {title, format, url, filesize}][0:12]}]
+https://www.data.gouv.fr/api/1/datasets/?q=europ%C3%A9ennes%202024%20r%C3%A9sultats%20d%C3%A9finitifs&page_size=6&sort=-followers	[.data[] | {slug, title, org: .organization.name, resources: [.resources[] | {title, format, url, filesize}][0:12]}]
+https://static.data.gouv.fr/resources/base-des-lieux-et-equipements-culturels-basilic/20260218-084338/base-des-lieux-et-des-equipements-culturels.csv
