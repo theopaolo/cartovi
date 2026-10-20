@@ -52,7 +52,7 @@ def communes(ctx):
     if "communes" not in ctx.memo:
         ctx.memo["communes"] = ctx.http.json(
             "https://geo.api.gouv.fr/communes",
-            {"fields": "code,population,surface,centre", "format": "json"},
+            {"fields": "code,nom,population,surface,centre", "format": "json"},
             timeout=180,
         )
     return ctx.memo["communes"]

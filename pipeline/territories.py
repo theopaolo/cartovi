@@ -82,19 +82,25 @@ def load(sample_step_m=30000.0):
     return dict(sorted(out.items()))
 
 
-def svg_layer(territories, width=1000.0, pad=10.0):
-    """Projette en coordonnées SVG (y vers le bas) pour un viewBox de largeur fixe."""
+def svg_transform(territories, width=1000.0, pad=10.0):
+    """Lambert-93 -> coordonnées SVG (y vers le bas) d'un viewBox de largeur fixe.
+    Renvoie (fonction, hauteur) ; partagé par les contours et les points communaux."""
     boxes = [geo.bbox(t.polys) for t in territories.values()]
     x0 = min(b[0] for b in boxes)
     y0 = min(b[1] for b in boxes)
     x1 = max(b[2] for b in boxes)
     y1 = max(b[3] for b in boxes)
     s = (width - 2 * pad) / (x1 - x0)
-    height = (y1 - y0) * s + 2 * pad
 
     def tr(x, y):
         return (x - x0) * s + pad, (y1 - y) * s + pad
 
+    return tr, (y1 - y0) * s + 2 * pad
+
+
+def svg_layer(territories, width=1000.0, pad=10.0):
+    """Contours départementaux en chemins SVG."""
+    tr, height = svg_transform(territories, width, pad)
     items = []
     for t in territories.values():
         lx, ly = tr(*geo.lambert93(*t.centroid))
