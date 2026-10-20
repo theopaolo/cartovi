@@ -35,7 +35,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0f1311;
     --surface: #171d1a;
     --surface-2: #212a25;
@@ -63,7 +63,39 @@
     --hatch-line: #6c7a71;
     --map-line: rgba(8, 12, 10, 0.85);
     --label-halo: rgba(11, 14, 13, 0.88);
+    color-scheme: dark;
   }
+}
+/* même palette quand le thème sombre est choisi explicitement */
+:root[data-theme="dark"] {
+  --bg: #0f1311;
+  --surface: #171d1a;
+  --surface-2: #212a25;
+  --text: #e8eee9;
+  --muted: #a3b0a7;
+  --line: #333e37;
+  --accent: #4fc29c;
+  --accent-soft: #17332a;
+  --focus: #8db3ff;
+  --ring: #ffffff;
+  --halo: #0b0e0d;
+  --warn: #f0c46b;
+  --warn-bg: #2d2410;
+  --warn-line: #5f4b1c;
+
+  --c1: #2f9d79; --c1-ink: #04130d;
+  --c2: #7cbf93; --c2-ink: #0a1d13;
+  --c3: #e0d390; --c3-ink: #231f0a;
+  --c4: #dda04f; --c4-ink: #26160a;
+  --c5: #a85f2b; --c5-ink: #ffffff;
+  --s1: #2a4258; --s2: #35688d; --s3: #4a93c4; --s4: #86bde3; --s5: #cde3f7;
+
+  --neutral: #353d38;
+  --hatch-bg: #232a26;
+  --hatch-line: #6c7a71;
+  --map-line: rgba(8, 12, 10, 0.85);
+  --label-halo: rgba(11, 14, 13, 0.88);
+  color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
