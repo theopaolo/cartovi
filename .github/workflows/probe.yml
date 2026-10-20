@@ -19,7 +19,8 @@ jobs:
             [ -z "$u" ] && continue
             echo "=================== $u"
             curl -sSL --max-time 300 -A "cartovi-probe" -o /tmp/r -w "HTTP %{http_code} | %{content_type} | %{size_download} octets | %{url_effective}\n" "$u" || true
-            if [ -n "$q" ]; then jq -c "$q" /tmp/r | head -c 8000
+            if [ "${q#sh }" != "$q" ]; then (eval "${q#sh }") | head -c 8000
+            elif [ -n "$q" ]; then jq -c "$q" /tmp/r | head -c 8000
             elif gzip -t /tmp/r 2>/dev/null; then zcat /tmp/r | head -c "$N"
             elif unzip -l /tmp/r >/dev/null 2>&1; then unzip -l /tmp/r | head -25; for f in $(unzip -Z1 /tmp/r | head -8); do echo "--- $f"; unzip -p /tmp/r "$f" | head -c 400; echo; done
             else head -c "$N" /tmp/r; fi
