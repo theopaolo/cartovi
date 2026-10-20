@@ -71,6 +71,24 @@ web/                                   HTML + CSS + JS (modules ES), sans framew
 Chaque indicateur est décrit en détail, limites comprises, dans son module
 (`pipeline/sources/`) et dans la section « Méthode & sources » du site.
 
+## Couche communale : chercher une commune
+
+`python -m pipeline.communes` (mensuel, dans le même workflow) produit
+`web/data/communes/<code région>.json`, exploité par la page `communes.html`. Les
+critères y sont des **filtres réglables**, pas un score.
+
+| Critère | Calcul | Source |
+|---|---|---|
+| Train vers une ville | trajet **direct** le plus court et nombre de trains directs, un mardi ou jeudi type, vers chaque commune de ≥ 50 000 habitants (gares à moins de 5 km de son centre) ; gare choisie dans un rayon de 6 km, chaque km d'accès coûtant 3 min | GTFS national SNCF (TER, Intercités, TGV ; cars exclus) |
+| Climat politique | part des voix des listes de gauche (LFI, PS-Place publique, Écologistes, PCF, extrême et divers gauche) aux européennes 2024, dans la commune et dans un rayon de 10 km | ministère de l'Intérieur |
+| Offre culturelle | cinémas, scènes, lieux labellisés (scène nationale, SMAC, CDN…), musées, librairies, conservatoires à moins de 15 km | Basilic, ministère de la Culture |
+| Prix | médiane du prix au m² des maisons (≥ 10 ventes ; Paris, Lyon, Marseille agrégés depuis leurs arrondissements) | Statistiques DVF |
+
+Limites : pas de correspondances (un trajet avec changement n'apparaît pas) ; cars
+TER ignorés ; les européennes (51 % de participation) décrivent un électorat, pas une
+politique municipale ; un rayon de 10 km autour d'une banlieue mesure surtout la ville
+voisine.
+
 ## Méthode de score
 
 1. **Normalisation par rang centile.** Pour chaque indicateur, un département reçoit la
