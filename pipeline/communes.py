@@ -34,6 +34,8 @@ from .util import dep_of_commune, norm_commune
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
+VERSION = 2  # 2 : coût d'accès à la gare, prix agrégés pour Paris, Lyon, Marseille
+ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
 EUROPEENNES = "resultats-des-elections-europeennes-du-9-juin-2024"
@@ -70,6 +72,7 @@ LABELS = (
     "Centre national de la marionnette",
 )
 CULTURE = ("cinemas", "scenes", "labels", "musees", "librairies", "conservatoires")
+ARRONDISSEMENTS = {"751": "75056", "6938": "69123", "132": "13055"}
 REGION_CODE = {d: code for code, (_, deps) in territories.REGIONS.items() for d in deps.split()}
 
 
@@ -266,11 +269,19 @@ def venues(ctx):
 def prices(ctx):
     res = datagouv.resource(ctx.http, "statistiques-dvf", title="Statistiques totales DVF")
     out = {}
+    plm = {}  # Paris, Lyon, Marseille : publiés par arrondissement
     for r in ctx.http.csv(res["url"], timeout=300):
         if r.get("echelle_geo") == "commune":
             med, n = r.get("med_prix_m2_whole_maison"), r.get("nb_ventes_whole_maison")
             if med and n and float(n) >= 10:
-                out[norm_commune(r["code_geo"])] = round(float(med))
+                code = norm_commune(r["code_geo"])
+                out[code] = round(float(med))
+                city = ARRONDISSEMENTS.get(code[:3] if code.startswith(("751", "132")) else code[:4])
+                if city:
+                    plm.setdefault(city, []).append((float(n), float(med)))
+    for city, parts in plm.items():
+        # moyenne des médianes d'arrondissement pondérée par les ventes : approximation
+        out[city] = round(sum(n * m for n, m in parts) / sum(n for n, _ in parts))
     ctx.log(f"  DVF : prix des maisons pour {len(out)} communes")
     return out
 
@@ -331,10 +342,13 @@ def build(ctx):
                 cult[k] += 1
         near = sorted(grid_st.near(c.x, c.y, STATION_RADIUS_KM))
         reach = {}
+        cost = {}
         for km, sid in near:
             for k, minutes, n in by_station.get(sid, ()):
-                if k not in reach or minutes < reach[k][0]:
-                    reach[k] = (round(minutes), n, round(km, 1))
+                # la gare voisine plus rapide ne l'emporte que si elle compense le trajet pour s'y rendre
+                c_ = minutes + ACCESS_MIN_PER_KM * km
+                if k not in cost or c_ < cost[k]:
+                    cost[k], reach[k] = c_, (round(minutes), n, round(km, 1))
         g = near[0] if near else None
         sx, sy = tr(c.x, c.y)
         row = [
@@ -348,6 +362,7 @@ def build(ctx):
         by_region.setdefault(REGION_CODE[c.dep], []).append(row)
 
     meta = {
+        "version": VERSION,
         "generated_at": db.now(),
         "reference_day": f"{day[:4]}-{day[4:6]}-{day[6:]}",
         "viewBox": f"0 0 1000 {height:.0f}",
@@ -375,7 +390,12 @@ def main(argv=None):
     con = db.connect(args.db)
     last = con.execute("SELECT MAX(finished_at) t FROM run WHERE source_id='communes' AND status='ok'").fetchone()["t"]
     today = datetime.date.today()
-    if not args.force and last and (today - datetime.date.fromisoformat(last[:10])).days < MAX_AGE_DAYS:
+    try:
+        version = json.loads((OUT / "index.json").read_text("utf-8")).get("version")
+    except (OSError, ValueError):
+        version = None
+    fresh = last and (today - datetime.date.fromisoformat(last[:10])).days < MAX_AGE_DAYS
+    if not args.force and fresh and version == VERSION:
         print(f"couche communale à jour ({last[:10]}), rien à faire")
         return 0
     ctx = SimpleNamespace(http=Http(use_cache=args.cache), territories=territories.load(), log=print,
