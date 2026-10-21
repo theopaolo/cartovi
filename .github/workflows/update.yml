@@ -47,6 +47,10 @@ jobs:
         continue-on-error: true
         run: python -m pipeline.communes
 
+      - name: Flux (vent de la semaine)
+        continue-on-error: true
+        run: python -m pipeline.flux
+
       - name: Rapport
         if: always()
         run: python -m pipeline.report >> "$GITHUB_STEP_SUMMARY"
