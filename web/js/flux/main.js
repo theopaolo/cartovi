@@ -324,6 +324,11 @@ function togglePlay(force) {
   state.playing = next;
   ui.time.setPlaying(next);
   lastTs = 0;
+  if (!next) {
+    // à l'arrêt, frise et lecture au pointeur doivent montrer exactement le même instant
+    syncTime();
+    if (state.hover || state.pinned) refreshProbe();
+  }
   applyMode();
 }
 
@@ -344,6 +349,7 @@ function setLayer(id, on) {
 // ---------------------------------------------------------------- lecture au pointeur
 
 const probeSoon = rafThrottle(() => {
+  syncTime(); // même instant affiché sur la frise et dans « Heure lue »
   refreshProbe();
   scheduleAnnounce();
 });
