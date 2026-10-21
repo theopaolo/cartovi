@@ -89,6 +89,21 @@ TER ignorés ; les européennes (51 % de participation) décrivent un électorat
 politique municipale ; un rayon de 10 km autour d'une banlieue mesure surtout la ville
 voisine.
 
+## Flux & limites : le vent et la maille
+
+`python -m pipeline.flux` (hebdomadaire) produit `web/data/flux/vent.json`, animé par
+la page `flux.html` en WebGL2 (shaders écrits à la main, sans bibliothèque).
+
+- **Donnée** : vent à 10 m des 7 derniers jours, toutes les 3 h, sur une grille de 0,5°
+  (~630 nœuds, Open-Meteo, modèles de Météo-France et du CEPMMT). Les nœuds sont exportés
+  tels quels : c'est la seule information réelle, le reste est interpolé (dans
+  l'espace par le GPU, dans le temps entre deux images).
+- **Projection** : les vecteurs sont tournés dans le repère Lambert-93, dont le nord
+  s'écarte du nord géographique de ±4° aux marges de la France.
+- **Limites superposées** : départements, cercles PPI de 20 km, et la maille elle-même.
+  Le propos est de montrer ce que la carte ne sait pas : rafales, effets de vallée,
+  tout ce qui est plus fin que la grille.
+
 ## Méthode de score
 
 1. **Normalisation par rang centile.** Pour chaque indicateur, un département reçoit la
