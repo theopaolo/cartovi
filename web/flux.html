@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Cartovi — Flux &amp; limites</title>
+  <meta name="description" content="Le vent de la semaine écoulée sur la France, animé en particules, et les limites qu’il ignore : départements, périmètres de plans d’urgence nucléaires, et la maille des données elles-mêmes.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231b7a5a'/%3E%3Cpath d='M4 11l2-6 3 3 3-4v7z' fill='%23f2e6b1'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/flux/main.js"></script>
+</head>
+<body>
+  <nav class="skip" aria-label="Accès rapide">
+    <a href="#stage-title" data-jump>Carte du vent</a>
+    <a href="#time-title" data-jump>Temps et couches</a>
+    <a href="#methode" data-jump>Ce que montre cette carte</a>
+  </nav>
+
+  <div class="shell">
+    <header class="top">
+      <h1>Cartovi</h1>
+      <p class="tagline">Le vent de la semaine écoulée, animé, et les <strong>limites</strong> qu’il ignore : départements, périmètres de plans d’urgence… et celle des données elles-mêmes.</p>
+      <nav class="top-nav" aria-label="Pages du site">
+        <a href="index.html">Départements</a>
+        <a href="communes.html">Communes</a>
+        <a href="flux.html" aria-current="page">Flux &amp; limites</a>
+        <a href="#methode" data-jump>Ce que montre la carte</a>
+      </nav>
+    </header>
+
+    <main class="app flux-app">
+      <section class="map-col" aria-labelledby="stage-title">
+        <h2 id="stage-title" class="sr-only" tabindex="-1">Carte du vent</h2>
+        <p id="notice" class="notice" role="status" hidden>
+          <strong>Données en cours de génération.</strong> Le vent de la semaine est produit automatiquement chaque semaine ; la page sera disponible dès qu’il aura été publié.
+        </p>
+        <p id="load-error" class="notice" role="alert" hidden>Impossible de lire les données du vent (data/flux/vent.json). Réessayez plus tard.</p>
+        <p id="gl-notice" class="notice" role="status" hidden></p>
+        <p id="motion-note" class="notice" role="status" hidden>Animation désactivée par vos réglages (mouvement réduit) : des flèches remplacent les particules. « Lecture » les anime.</p>
+        <div class="flux-box">
+          <div id="stage" class="flux-stage" tabindex="0" role="group" aria-label="Carte interactive du vent" aria-describedby="stage-hint"><p class="muted map-loading">Chargement du vent…</p></div>
+          <p id="stage-hint" class="flux-hint muted small">Survolez ou touchez la carte pour lire le vent en un point, et la distance à la donnée réelle la plus proche. <span class="kbd-hint">Au clavier : flèches pour déplacer le point (Maj pour aller plus vite), Entrée pour le poser, Échap pour l’effacer.</span></p>
+        </div>
+      </section>
+
+      <div class="side flux-side">
+        <div class="side-scroll">
+          <div id="readout"></div>
+          <div id="time"></div>
+          <div id="layers"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <section id="methode" class="method" tabindex="-1" aria-labelledby="methode-title">
+    <div class="method-inner">
+      <h2 id="methode-title">Ce que montre (et ne montre pas) cette carte</h2>
+      <p>Cette page oppose un phénomène physique, le vent, aux découpages que nous traçons sur les cartes. Les particules suivent le vent à 10 m du sol pendant la semaine écoulée ; les tracés posés par-dessus (départements, périmètres de plans d’urgence, grille de données) n’ont, eux, aucun effet sur lui.</p>
+
+      <h3>D’où vient ce vent</h3>
+      <p>Ce n’est pas une mesure mais une sortie de modèle météorologique, obtenue par l’API Open-Meteo avec son mode « best match » : surtout les modèles AROME et ARPEGE de Météo-France. Aucun anémomètre n’intervient. Les <span id="frames-n">…</span> images couvrent une semaine à raison d’une toutes les 3&nbsp;heures ; les dernières peuvent être des prévisions (elles sont alors signalées « prévision » sous le curseur de temps).</p>
+
+      <h3>La maille : ce qui est réel, et ce qui est interpolé</h3>
+      <p>Le modèle n’a été interrogé qu’en des points précis : les nœuds d’une grille régulière de 0,5°, soit environ <span id="grid-km">45&nbsp;km</span>. Ce sont les croix de la couche « La maille », avec leur aire d’influence. Tout le reste est calculé :</p>
+      <ul>
+        <li><strong>dans l’espace</strong>, deux fois : le champ est d’abord rééchantillonné par interpolation bilinéaire sur une grille plus fine (50&nbsp;×&nbsp;47 cellules, environ 23&nbsp;km), puis le processeur graphique interpole encore entre ces cellules pour chaque particule ;</li>
+        <li><strong>dans le temps</strong> : entre deux images, les composantes du vent sont mélangées linéairement. Un vent qui tournerait de 180° entre deux images passerait par une accalmie qui n’a jamais existé.</li>
+      </ul>
+      <p>Entre deux nœuds il n’y a donc aucune donnée. La couche « Montrer ce qui est interpolé » hachure et atténue ce qui est loin d’un nœud ; la lecture au pointeur donne la distance exacte à la donnée réelle la plus proche.</p>
+
+      <h3>Les limites tracées ne comptent pas pour le vent</h3>
+      <p>Les départements sont un découpage administratif ; les cercles de 20&nbsp;km sont les périmètres des plans particuliers d’intervention (PPI) autour des centrales nucléaires. Ils sont tracés ici pour situer le vent, qui les traverse sans les voir. Cette carte n’est ni une prévision de dispersion, ni une évaluation de risque, ni un outil de décision. La seule limite qui pèse réellement sur ce que vous voyez est celle des données : la maille.</p>
+
+      <h3>Projection et vitesse d’affichage</h3>
+      <p>Les vecteurs ont été tournés dans le repère de la projection Lambert-93 de la carte : le haut de l’écran est le nord de la grille, qui s’écarte du nord géographique de ±5° aux marges de la France. Les directions écrites (« vent de sud-ouest ») se lisent donc sur la carte. Les particules avancent à une vitesse d’affichage, environ <span data-flow>4</span>&nbsp;heures de vent par seconde, et non à la vitesse réelle ; la vitesse de lecture du temps (1, 4 ou 16&nbsp;h par seconde) est un réglage distinct.</p>
+
+      <h3>Ce qui n’y est pas</h3>
+      <ul>
+        <li><strong>Les rafales.</strong> Seul le vent moyen horaire figure ici, jamais les pointes.</li>
+        <li><strong>Le relief local.</strong> Vallées qui canalisent, foehn, brises de mer ou de pente : tout ce qui est plus fin que la maille est absent. Une vallée large de quelques kilomètres n’existe pas dans ces données.</li>
+        <li><strong>Tout autre niveau que 10&nbsp;m</strong>, les obstacles, la ville, la forêt.</li>
+        <li><strong>Les observations.</strong> Rien n’est comparé aux stations de mesure.</li>
+      </ul>
+
+      <h3>Source et données</h3>
+      <p>Source : <span id="src-label">Open-Meteo</span> (<a id="src-link" href="https://open-meteo.com/en/docs" target="_blank" rel="noopener noreferrer">open-meteo.com</a>). Licence : <span id="src-licence">CC BY 4.0, usage non commercial</span>.</p>
+      <p>
+        <a href="data/flux/vent.json" download>vent.json</a> (champ de vent utilisé par cette page, nœuds de la maille et cercles PPI).
+        Voir aussi la <a href="index.html#methode">méthode de la carte des départements</a>.
+      </p>
+      <p id="generated" class="muted"></p>
+    </div>
+  </section>
+
+  <noscript><p class="notice">Cartovi a besoin de JavaScript pour animer le vent.</p></noscript>
+</body>
+</html>
