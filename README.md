@@ -91,6 +91,25 @@ TER ignorés ; les européennes (51 % de participation) décrivent un électorat
 politique municipale ; un rayon de 10 km autour d'une banlieue mesure surtout la ville
 voisine.
 
+## Recherche : la fiche d'une commune
+
+`recherche.html` (et le champ de recherche présent dans l'en-tête de chaque page)
+retrouve une commune par son nom, et affiche ses valeurs dans toutes les catégories du
+projet :
+
+- **commune** : train direct vers les villes de référence, climat politique, culture à
+  15 km, prix des maisons ;
+- **département** : les indicateurs de la carte principale, avec le rang centile et la
+  classe du département. Ce sont des valeurs départementales, signalées comme telles ;
+- **flux** : vent moyen et maximal de la semaine au point de la commune, et la distance
+  à la donnée réelle la plus proche.
+
+La recherche ignore les accents, la casse et la ponctuation, et accepte « st » pour
+« saint ». Un code de département (« saint martin 38 ») ou un code INSEE restreint les
+résultats. On peut comparer jusqu'à quatre communes côte à côte.
+L'index `web/data/communes/noms.json` (~1 Mo, code, nom et population) est produit par
+`python -m pipeline.communes` ; `--index-only` le régénère sans rien télécharger.
+
 ## Flux & limites : le vent et la maille
 
 `python -m pipeline.flux` (hebdomadaire) produit `web/data/flux/vent.json`, animé par
