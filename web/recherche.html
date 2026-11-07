@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Carteplan — rechercher une commune</title>
+  <meta name="description" content="Retrouver une commune par son nom, puis lire ses valeurs dans toutes les catégories du projet : train, climat politique, culture, prix, indicateurs du département, vent. Comparer jusqu’à quatre communes.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231b7a5a'/%3E%3Cpath d='M4 11l2-6 3 3 3-4v7z' fill='%23f2e6b1'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/header-search.js"></script>
+  <script type="module" src="js/recherche/main.js"></script>
+</head>
+<body>
+  <nav class="skip" aria-label="Accès rapide">
+    <a href="#q" data-jump>Champ de recherche</a>
+    <a href="#fiche-zone" data-jump>Fiche de la commune</a>
+    <a href="#compare" data-jump>Comparaison</a>
+    <a href="#methode" data-jump>Méthode et limites</a>
+  </nav>
+
+  <div class="shell rech-shell">
+    <header class="top">
+      <h1>Carteplan</h1>
+      <p class="tagline">Retrouver une <strong>commune</strong> par son nom, lire ses valeurs dans toutes les catégories du projet, en comparer quelques-unes.</p>
+      <div class="top-tools">
+        <nav class="top-nav" aria-label="Pages du site">
+          <a href="index.html">Départements</a>
+          <a href="communes.html">Communes</a>
+          <a href="recherche.html" aria-current="page">Recherche</a>
+          <a href="flux.html">Flux &amp; limites</a>
+          <a href="#methode" data-jump>Méthode &amp; limites</a>
+        </nav>
+        <form class="top-search" id="top-search" data-here role="search" aria-label="Rechercher une commune" action="recherche.html" method="get">
+          <label class="sr-only" for="top-q">Rechercher une commune</label>
+          <input id="top-q" name="q" type="search" placeholder="Chercher une commune" autocomplete="off" spellcheck="false" enterkeyhint="search" maxlength="100">
+          <button type="submit" class="top-search-go" aria-label="Lancer la recherche"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 10l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        </form>
+      </div>
+    </header>
+
+    <main class="rech-app" id="app">
+      <div class="rech-top">
+      <section class="card rech-search" aria-labelledby="search-title">
+        <h2 id="search-title" class="rech-h"><label for="q">Chercher une commune</label></h2>
+        <input id="q" class="rech-input" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="rech-list" aria-describedby="q-help" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" maxlength="100" placeholder="Nom de commune, ex. saint martin 38">
+        <p id="q-help" class="muted small rech-help">Sans accents ni tirets, « st » vaut « saint ». Ajoutez un département (<code>38</code>, <code>2A</code> ou son nom) pour restreindre, ou un code INSEE à 5 caractères. Flèches ↑ ↓ puis Entrée pour ouvrir une fiche.</p>
+        <p id="load-error" class="notice" role="alert" hidden>Impossible de charger l’index des communes (data/communes/noms.json). Réessayez plus tard.</p>
+
+        <div class="rech-filters" id="filters" hidden>
+          <label class="rech-region"><span>Région</span>
+            <select id="f-region"><option value="">Toutes</option></select>
+          </label>
+          <div class="pills" id="f-sizes" role="group" aria-label="Taille de la commune"></div>
+        </div>
+
+        <p id="rech-count" class="rech-count" aria-hidden="true"></p>
+        <p id="rech-status" class="sr-only" role="status" aria-live="polite"></p>
+
+        <div id="rech-empty" class="rech-empty" hidden></div>
+        <div id="rech-body" class="rech-body">
+          <p id="rech-none" class="rech-none muted" hidden></p>
+          <div id="rech-list" class="rech-list" role="listbox" aria-label="Communes trouvées"></div>
+          <p class="rech-more"><button type="button" id="rech-more" class="btn" hidden>Afficher plus</button></p>
+        </div>
+      </section>
+
+      <div id="fiche-zone" class="rech-fiche-zone" tabindex="-1">
+        <aside id="fiche" class="card rech-fiche" aria-labelledby="fiche-title" hidden></aside>
+        <div id="fiche-ph" class="card rech-ph">
+          <h2>La fiche d’une commune</h2>
+          <p>Choisissez une commune dans les résultats : sa fiche rassemble, avec unité, période et source,</p>
+          <ul>
+            <li><strong>Train</strong> : gare la plus proche et trains directs vers les grandes villes ;</li>
+            <li><strong>Climat politique</strong>, <strong>culture</strong> à 15&nbsp;km et <strong>prix</strong> des maisons ;</li>
+            <li>les indicateurs du <strong>département</strong> (eau, foncier, nature, risques) et sa classe, clairement distingués de ceux de la commune ;</li>
+            <li>le <strong>vent</strong> de la semaine écoulée au point de la commune.</li>
+          </ul>
+          <p class="muted small">Ajoutez jusqu’à quatre communes à la comparaison pour les lire côte à côte.</p>
+        </div>
+      </div>
+
+      </div>
+
+      <section id="compare" class="card rech-compare" aria-labelledby="compare-title" tabindex="-1" hidden>
+        <div class="rech-cmp-head">
+          <h2 id="compare-title">Comparaison</h2>
+          <span id="compare-count" class="muted small"></span>
+          <button type="button" id="compare-clear" class="btn ghost tiny">Tout retirer</button>
+        </div>
+        <div id="compare-body"></div>
+      </section>
+    </main>
+  </div>
+
+  <section id="methode" class="method" tabindex="-1" aria-labelledby="methode-title">
+    <div class="method-inner">
+      <h2 id="methode-title">Méthode &amp; limites</h2>
+      <h3>Comment la recherche classe les communes</h3>
+      <ul>
+        <li><strong>Normalisation.</strong> Minuscules, sans accents ; tirets, apostrophes et ponctuation valent des espaces ; « œ » vaut « oe » ; « st » et « ste » valent « saint » et « sainte ». Tous les mots saisis doivent se retrouver dans le nom.</li>
+        <li><strong>Ordre.</strong> Nom exact, puis début du nom, puis début d’un mot, puis simple contenu ; à rang égal, la commune la plus peuplée passe devant (les homonymes se distinguent par leur département).</li>
+        <li><strong>Département.</strong> Un code à 2 caractères (01 à 95, 2A, 2B) ou le nom d’un département saisi avec le nom de la commune restreint la recherche à ce département ; un code à 5 caractères est un code INSEE (pas un code postal). Un nom de département seul reste une recherche de nom de commune.</li>
+        <li><strong>Filtres.</strong> La région et la taille (village sous 2&nbsp;000 habitants, bourg de 2&nbsp;000 à 10&nbsp;000, petite ville de 10&nbsp;000 à 50&nbsp;000, ville à partir de 50&nbsp;000) se combinent à la requête.</li>
+      </ul>
+      <h3>Ce que contient une fiche</h3>
+      <ul>
+        <li><strong>Valeurs de la commune</strong> : train, climat politique, culture, prix. Mêmes données et mêmes limites que la page <a href="communes.html#methode">Communes</a> (trains directs seulement, un scrutin n’est pas une opinion, des comptages de lieux, un prix médian seulement avec au moins 10 ventes).</li>
+        <li><strong>Valeurs du département</strong> : celles de la carte comparative, pas celles de la commune. « Mieux que X&nbsp;% des départements » est le score percentile de l’<a href="index.html#methode">indice composite</a> ; la classe et le rang suivent les pondérations par défaut, relatifs et sans jugement absolu.</li>
+        <li><strong>Vent</strong> : lecture du champ de la page <a href="flux.html#methode">Flux &amp; limites</a> au point de la commune, sur la semaine disponible. Seuls les nœuds d’une maille d’environ 50&nbsp;km sont des données réelles : plus la donnée réelle la plus proche est loin, plus la valeur est interpolée. Le relief local (vallée, col) n’y est pas.</li>
+      </ul>
+      <p id="generated" class="muted"></p>
+    </div>
+  </section>
+
+  <noscript><p class="notice">Carteplan a besoin de JavaScript pour chercher une commune.</p></noscript>
+</body>
+</html>

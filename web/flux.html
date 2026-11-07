@@ -8,6 +8,7 @@
   <meta name="description" content="Le vent de la semaine écoulée sur la France, animé en particules, et les limites qu’il ignore : départements, périmètres de plans d’urgence nucléaires, et la maille des données elles-mêmes.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231b7a5a'/%3E%3Cpath d='M4 11l2-6 3 3 3-4v7z' fill='%23f2e6b1'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/header-search.js"></script>
   <script type="module" src="js/flux/main.js"></script>
 </head>
 <body>
@@ -21,12 +22,20 @@
     <header class="top">
       <h1>Carteplan</h1>
       <p class="tagline">Le vent de la semaine écoulée, animé, et les <strong>limites</strong> qu’il ignore : départements, périmètres de plans d’urgence… et celle des données elles-mêmes.</p>
-      <nav class="top-nav" aria-label="Pages du site">
-        <a href="index.html">Départements</a>
-        <a href="communes.html">Communes</a>
-        <a href="flux.html" aria-current="page">Flux &amp; limites</a>
-        <a href="#methode" data-jump>Ce que montre la carte</a>
-      </nav>
+      <div class="top-tools">
+        <nav class="top-nav" aria-label="Pages du site">
+          <a href="index.html">Départements</a>
+          <a href="communes.html">Communes</a>
+          <a href="recherche.html">Recherche</a>
+          <a href="flux.html" aria-current="page">Flux &amp; limites</a>
+          <a href="#methode" data-jump>Ce que montre la carte</a>
+        </nav>
+        <form class="top-search" id="top-search" role="search" aria-label="Rechercher une commune" action="recherche.html" method="get">
+          <label class="sr-only" for="top-q">Rechercher une commune</label>
+          <input id="top-q" name="q" type="search" placeholder="Chercher une commune" autocomplete="off" spellcheck="false" enterkeyhint="search" maxlength="100">
+          <button type="submit" class="top-search-go" aria-label="Lancer la recherche"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 10l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        </form>
+      </div>
     </header>
 
     <main class="app flux-app">

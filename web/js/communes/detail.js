@@ -46,6 +46,7 @@ export function createDetail(root, { index, onClose }) {
             : h('p', { class: 'muted' }, 'Non disponible : moins de 10 ventes de maisons.'),
         ),
         department(c, dep, payload),
+        h('p', {}, h('a', { href: `recherche.html#c=${encodeURIComponent(c.code)}` }, 'Fiche complète')),
       );
     },
   };

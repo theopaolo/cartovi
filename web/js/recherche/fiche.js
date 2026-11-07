@@ -1,0 +1,142 @@
+// fiche.js — fiche d'une commune : les sections du profil (profile.js), chacune avec unité, période et source.
+import { h } from '../dom.js';
+import { NBSP, fmtNumber } from '../format.js';
+import { staleBadge } from '../panel.js';
+import { NATIONAL_LEFT } from './text.js';
+import { MAX_COMPARE } from './hash.js';
+import { identityLine } from './profile.js';
+
+const SCOPE = { commune: 'valeurs de la commune', departement: 'valeurs du département', point: 'lecture au point de la commune' };
+
+export const sourceLink = (src) =>
+  src?.url ? h('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, src.label || src.provider || 'Source') : src?.label || src?.provider || 'Source';
+
+/** Ligne « période · source » d'une section ou d'un indicateur. */
+export const meta = (period, src, extra) => h('p', { class: 'ind-meta' }, period, ' · ', sourceLink(src), extra ? ` · ${extra}` : '');
+
+export function createFiche(root, { onClose, onToggleCompare }) {
+  const title = h('h2', { id: 'fiche-title', tabindex: '-1' });
+  const sub = h('p', { class: 'detail-region' });
+  const close = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Fermer la fiche (Échap)', onclick: onClose }, '×');
+  const actions = h('div', { class: 'rech-actions' });
+  const body = h('div', { class: 'detail-body' });
+  root.replaceChildren(h('div', { class: 'detail-head' }, h('div', {}, title, sub), close), body);
+  let shownCode = null;
+
+  return {
+    focus: () => title.focus({ preventScroll: true }),
+    hide() {
+      root.hidden = true;
+      shownCode = null;
+    },
+    get code() {
+      return shownCode;
+    },
+    /** p : profil (profile.js) ; compared : la commune est dans la comparaison ; full : la comparaison est pleine. */
+    show(p, { compared, full }) {
+      const same = shownCode === p.code;
+      shownCode = p.code;
+      root.hidden = false;
+      title.textContent = `${p.nom} (${p.code})`;
+      sub.textContent = identityLine(p);
+      const top = same ? root.scrollTop : 0;
+      const toggle = h(
+        'button',
+        { type: 'button', class: `btn${compared ? '' : ' primary'}`, 'aria-pressed': String(compared), disabled: !compared && full, onclick: () => onToggleCompare(p.code) },
+        compared ? 'Retirer de la comparaison' : 'Ajouter à la comparaison',
+      );
+      actions.replaceChildren(
+        ...[
+          toggle,
+          !compared && full ? h('span', { class: 'muted small' }, `${MAX_COMPARE} communes au maximum`) : null,
+          h('a', { class: 'btn', href: `index.html#d=${encodeURIComponent(p.dep)}` }, 'Voir le département sur la carte'),
+          h('a', { class: 'btn', href: `communes.html#${p.regionCode ? `r=${p.regionCode}&` : ''}c=${p.code}` }, 'Ouvrir dans Communes'),
+        ].filter(Boolean),
+      );
+      body.replaceChildren(
+        actions,
+        h('p', { class: 'rech-back' }, h('a', { href: '#q', 'data-jump': '' }, '↑ Retour à la recherche')),
+        ...p.sections.map(section),
+        h('p', { class: 'muted small' }, 'Population : ', sourceLink({ label: 'geo.api.gouv.fr (INSEE)', url: 'https://geo.api.gouv.fr/' }), '.'),
+      );
+      root.scrollTop = top;
+    },
+  };
+}
+
+const bar = (v) => h('div', { class: 'bar', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.max(0, Math.min(100, v))}%` }));
+const rows = (list) => h('dl', { class: 'kv' }, list.flatMap((r) => [h('dt', {}, r.label), h('dd', {}, r.text, r.sub ? h('span', { class: 'sub' }, r.sub) : null)]));
+const head = (s) => h('h3', {}, s.title, h('span', { class: `badge scope-${s.scope}` }, SCOPE[s.scope]));
+
+function section(s) {
+  if (s.id === 'departement') return departement(s);
+  const out = h('section', { class: 'rech-sec', 'data-sec': s.id }, head(s));
+  if (s.state) {
+    out.append(h('p', { class: 'muted' }, s.state === 'loading' ? 'Chargement…' : 'Données indisponibles pour le moment.'));
+    return out;
+  }
+  if (s.id === 'politique') {
+    out.append(...s.rows.map(share), h('p', { class: 'muted small' }, s.reference));
+  } else {
+    out.append(rows(s.rows));
+  }
+  if (s.links?.length) {
+    out.append(
+      h('p', { class: 'rech-sub' }, s.linksLabel),
+      h('ul', { class: 'links' }, s.links.map((l) => h('li', {}, h('span', {}, l.label), h('span', { class: 'muted' }, `${l.text} · ${l.sub}`)))),
+    );
+  }
+  if (s.empty) out.append(h('p', { class: 'muted' }, s.empty));
+  if (s.note) out.append(h('p', { class: 'muted small' }, s.note));
+  if (s.source) out.append(meta(s.source.period, s.source, s.source.licence));
+  return out;
+}
+
+/** Part de gauche : valeur, barre neutre (gris, pas de bon ni de mauvais) et repère de la référence nationale. */
+function share(r) {
+  const v = r.value;
+  return h(
+    'div',
+    { class: 'rech-share' },
+    h('div', { class: 'ind-head' }, h('span', { class: 'ind-label' }, r.label), h('span', { class: 'ind-val' }, r.text)),
+    v == null
+      ? h('div', { class: 'bar na', 'aria-hidden': 'true' })
+      : h('div', { class: 'bar share', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.max(0, Math.min(100, v))}%` }), h('b', { style: `left:${NATIONAL_LEFT}%`, title: `France entière : ${fmtNumber(NATIONAL_LEFT, 1)}${NBSP}%` })),
+  );
+}
+
+function departement(s) {
+  const out = h('section', { class: 'rech-sec rech-dep', 'data-sec': 'departement' }, h('h3', {}, s.title, h('span', { class: 'badge scope-departement' }, SCOPE.departement)));
+  out.append(h('p', { class: 'muted small' }, 'Ces valeurs décrivent le département entier, pas la commune : un même département regroupe des communes très différentes.'));
+  if (s.state === 'absent') {
+    out.append(h('p', { class: 'muted' }, 'Indicateurs en cours de génération.'));
+    return out;
+  }
+  const comp = s.composite;
+  if (comp) {
+    out.append(
+      h(
+        'div',
+        { class: 'detail-sum' },
+        h('span', { class: 'chip', style: `background:var(--c${comp.cls});color:var(--c${comp.cls}-ink)` }, comp.name),
+        h('p', { class: 'detail-rank' }, h('strong', {}, comp.rankText), h('span', {}, `Score ${fmtNumber(comp.score * 100, 1)}${NBSP}/${NBSP}100`)),
+        h('p', { class: 'muted small' }, 'Indice composite sous les pondérations par défaut ; classement relatif entre départements, pas un jugement absolu.', comp.used < comp.nWeighted ? ` Calculé sur ${comp.used} indicateurs sur ${comp.nWeighted}.` : ''),
+      ),
+    );
+  }
+  for (const t of s.themes) {
+    out.append(h('div', { class: 'theme-block' }, h('h4', { class: 'rech-theme' }, t.label), h('ul', { class: 'ind-list' }, t.rows.map(indicator))));
+  }
+  return out;
+}
+
+function indicator(r) {
+  const missing = r.pct == null;
+  return h(
+    'li',
+    { class: 'ind' },
+    h('div', { class: 'ind-head' }, h('span', { class: 'ind-label' }, r.label, r.stale ? staleBadge() : null), h('span', { class: 'ind-val' }, r.text)),
+    h('div', { class: `bar${missing ? ' na' : ''}`, 'aria-hidden': 'true' }, missing ? null : h('i', { style: `width:${r.pct}%` })),
+    h('p', { class: 'ind-meta' }, missing ? 'Pas de valeur pour ce département' : `mieux que ${r.pct}${NBSP}% des départements`, ' · ', r.period, ' · ', sourceLink(r.source)),
+  );
+}

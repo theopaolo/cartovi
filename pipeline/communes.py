@@ -34,7 +34,7 @@ from .util import dep_of_commune, norm_commune
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 2  # 2 : coût d'accès à la gare, prix agrégés pour Paris, Lyon, Marseille
+VERSION = 3  # 3 : gare principale (la plus desservie à proximité) ; 2 : coût d'accès, prix PLM
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -289,6 +289,16 @@ def prices(ctx):
 # --- assemblage ----------------------------------------------------------------------------------
 
 
+def main_station(near, stations):
+    """Gare principale d'une commune : la plus desservie parmi celles à moins de
+    max(3 km, gare la plus proche + 1 km). La plus proche n'est pas toujours la bonne :
+    au centre de Lyon, c'est un arrêt à 4 trains par jour, Part-Dieu en a des centaines."""
+    if not near:
+        return None
+    limit = max(3.0, near[0][0] + 1.0)
+    return max((g for g in near if g[0] <= limit), key=lambda g: (stations[g[1]]["departures"], -g[0]))
+
+
 def build(ctx):
     terrs = ctx.territories
     tr, height = territories.svg_transform(terrs)
@@ -345,11 +355,12 @@ def build(ctx):
         cost = {}
         for km, sid in near:
             for k, minutes, n in by_station.get(sid, ()):
-                # la gare voisine plus rapide ne l'emporte que si elle compense le trajet pour s'y rendre
-                c_ = minutes + ACCESS_MIN_PER_KM * km
+                # la gare voisine plus rapide ne l'emporte que si elle compense le trajet pour s'y rendre ;
+                # dans la ville de référence elle-même (0 min), on retient la gare la plus desservie
+                c_ = -n if minutes == 0 else minutes + ACCESS_MIN_PER_KM * km
                 if k not in cost or c_ < cost[k]:
                     cost[k], reach[k] = c_, (round(minutes), n, round(km, 1))
-        g = near[0] if near else None
+        g = main_station(near, stations)
         sx, sy = tr(c.x, c.y)
         row = [
             c.code, c.name, c.dep, c.pop, round(sx, 1), round(sy, 1), price.get(c.code),
