@@ -10,6 +10,7 @@ export const SOURCES = {
   vote: { label: 'Ministère de l’Intérieur — résultats des européennes 2024 par commune', url: 'https://www.data.gouv.fr/datasets/resultats-des-elections-europeennes-du-9-juin-2024' },
   culture: { label: 'Basilic — ministère de la Culture', url: 'https://www.data.gouv.fr/datasets/base-des-lieux-et-equipements-culturels-basilic' },
   prix: { label: 'DVF (statistiques) — Etalab', url: 'https://www.data.gouv.fr/datasets/statistiques-dvf' },
+  terres: { label: 'Géorisques, Cerema, ASNR, INSEE', url: 'https://www.georisques.gouv.fr/' },
   pop: { label: 'geo.api.gouv.fr (INSEE)', url: 'https://geo.api.gouv.fr/' },
 };
 

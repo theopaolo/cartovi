@@ -91,6 +91,27 @@ TER ignorés ; les européennes (51 % de participation) décrivent un électorat
 politique municipale ; un rayon de 10 km autour d'une banlieue mesure surtout la ville
 voisine.
 
+## Score personnalisé des communes
+
+Sur la page Communes, les communes **retenues par les filtres** sont classées entre elles
+par un score réglable. Ce n'est pas un classement de la France. Quatre règles :
+
+1. **Relatif à la sélection** : chaque critère est converti en rang centile parmi les
+   communes retenues, puis les rangs sont moyennés selon les poids. Le résultat est
+   recalculé à chaque changement de filtre.
+2. **Les préférences sans bon sens universel sont désactivées par défaut** : climat
+   politique et taille de la commune sont à zéro, et c'est l'utilisateur qui en choisit
+   le sens (plus à gauche ou plus à droite, plus petite ou plus grande). Le prix a lui
+   aussi un sens réglable.
+3. **La maille la plus fine disponible** : un critère de la carte des départements est
+   pris à la commune quand une source le permet (densité, artificialisation, CatNat,
+   distance à la centrale la plus proche, sites Seveso à moins de 10 km). Sinon la
+   commune hérite de la valeur de son département (restrictions d'eau, assecs, bilan
+   hydrique, chaleur 2050, sols pollués). Le repli sur le département ne se fait qu'à
+   unité identique, et il est signalé.
+4. **La distance nucléaire est plafonnée à 40 km**, deux fois le rayon PPI : au-delà,
+   elle ne départage plus.
+
 ## Recherche : la fiche d'une commune
 
 `recherche.html` (et le champ de recherche présent dans l'en-tête de chaque page)

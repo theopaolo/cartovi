@@ -5,7 +5,7 @@
 // 'departement' (valeurs du département, pas de la commune) ou 'point' (lecture du vent au point de la commune).
 import { CLASSES } from '../classes.js';
 import { NBSP, fmtDate, fmtNumber, fmtValue, pct, rankText } from '../format.js';
-import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from '../communes/text.js';
+import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, plural, trainsText } from '../communes/text.js';
 import { NATIONAL_LEFT, SOURCES, fmtDistance, fmtMoment, fmtWeek, kmh, mps, trainNote } from './text.js';
 import { windPhrase } from './vent.js';
 
@@ -38,7 +38,7 @@ export function buildProfile(ctx, row, { wind, regionCode, failed = false }) {
 }
 
 function communeSections(ctx, c, failed) {
-  const R = ctx.index?.radius || { gare: 6, vote: 10, culture: 15 };
+  const R = ctx.index?.radius || { gare: 6, vote: 10, culture: 15, seveso: 10 };
   const pending = (id, title, source) => ({ id, scope: 'commune', title, state: ctx.store && !failed ? 'loading' : 'error', rows: [], source });
   if (!c) {
     return [
@@ -46,6 +46,7 @@ function communeSections(ctx, c, failed) {
       pending('politique', 'Climat politique', SOURCES.vote),
       pending('culture', `Culture à moins de ${R.culture}${NBSP}km`, SOURCES.culture),
       pending('prix', 'Prix des maisons', SOURCES.prix),
+      pending('terres', TERRES_TITLE, SOURCES.terres),
     ];
   }
   // trajets directs vers les villes de référence, triés par durée
@@ -112,7 +113,30 @@ function communeSections(ctx, c, failed) {
       rows: [{ id: 'prix', label: 'Médiane du prix au m²', text: c.prix != null ? fmtPrice(c.prix) : 'moins de 10 ventes', sub: c.prix != null ? 'maisons, environ 5 ans' : 'valeur non publiée' }],
       source: { ...SOURCES.prix, period: 'ventes d’environ cinq ans' },
     },
+    terres(c, R),
   ];
+}
+
+const TERRES_TITLE = 'Terres et risques — valeurs de la commune';
+
+/** Les cinq valeurs communales de la couche « terres et risques » ; une colonne vide ou absente des données donne « non disponible ». */
+function terres(c, R) {
+  const na = 'non disponible';
+  const val = (v, text, sub) => (Number.isFinite(v) ? { text: text(v), sub } : { text: na });
+  return {
+    id: 'terres',
+    scope: 'commune',
+    title: TERRES_TITLE,
+    rows: [
+      { id: 'densite', label: 'Densité de population', ...val(c.densite, (v) => `${fmtNumber(v)}${NBSP}hab./km²`) },
+      { id: 'artif', label: 'Artificialisation récente', ...val(c.artif, (v) => `${fmtNumber(v, 1)}${NBSP}ha/an pour 100${NBSP}km²`, 'moyenne sur 5 ans') },
+      { id: 'catnat', label: 'Catastrophes naturelles reconnues', ...val(c.catnat, (v) => plural(v, 'arrêté'), 'sur 20 ans') },
+      { id: 'nucleaire_km', label: 'Centrale nucléaire la plus proche', ...val(c.nucleaire_km, fmtKm, 'à vol d’oiseau, depuis le centre de la commune') },
+      { id: 'seveso_10km', label: `Sites Seveso à moins de ${R.seveso}${NBSP}km`, ...val(c.seveso_10km, (v) => plural(v, 'site')) },
+    ],
+    note: 'Valeurs de la commune, à ne pas confondre avec celles du département plus bas. Sources : Cerema (artificialisation), GASPAR (catastrophes naturelles), Géorisques (Seveso), ASNR (centrales), INSEE (population et surface).',
+    source: { ...SOURCES.terres, period: 'dernières données publiées' },
+  };
 }
 
 function departmentSection(ctx, dep, terr) {

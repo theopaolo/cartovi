@@ -3,20 +3,22 @@
 // render() filtre, trie, puis redessine carte et tableau. Les régions se chargent à la demande.
 import { loadData } from '../data.js';
 import { prefersReducedMotion, rafThrottle } from '../dom.js';
-import { fmtDateTime, fmtNumber } from '../format.js';
+import { fmtDateTime, fmtNumber, rankText } from '../format.js';
 import { createControls } from './controls.js';
 import { createStore, defaultHub, loadIndex } from './data.js';
 import { createDetail } from './detail.js';
 import { DEFAULTS, DEFAULT_SORT, applyFilters, fixPopulation, medianLeft, sortResults } from './filter.js';
 import { hashFor, parseHash, writeHash } from './hash.js';
 import { createMap } from './map.js';
+import { CRITERIA, columnsAvailable, defaultSettings, levelOf, scoreCommunes } from './score-communes.js';
+import { createScorePanel } from './score-panel.js';
 import { createResults } from './table.js';
 import { fmtDay, fmtDuration, fmtPop, trainsText } from './text.js';
 
 const $ = (sel) => document.querySelector(sel);
 const narrow = () => matchMedia('(max-width: 959px)').matches; // fiche en feuille basse
 
-const state = { crit: null, sort: { ...DEFAULT_SORT }, selected: null };
+const state = { crit: null, sort: { ...DEFAULT_SORT }, selected: null, score: defaultSettings() };
 const ui = {};
 const pending = new Set(); // régions en cours de chargement
 const failed = new Set(); // régions dont le chargement a échoué
@@ -25,6 +27,13 @@ let store;
 let defaults;
 let deps = new Map(); // code département → territoire de map.json
 let payload = null; // indicators.json normalisé (facultatif)
+let env = { colAvail: {}, ind: () => undefined }; // contexte du score : colonnes communales présentes, indicateurs départementaux
+let base = null; // communes retenues (avant tri), conservées tant que ni critères ni communes ne changent
+let baseKey = '';
+let baseCommunes = null;
+let filterVer = 0;
+const scoreMemo = {};
+let scoring = null;
 let results = [];
 let resultMap = null; // code commune → résultat, construit à la demande
 let origin = 'map'; // d'où vient la sélection (pour rendre le focus à la fermeture)
@@ -38,11 +47,13 @@ async function init() {
   } catch (e) {
     console.error(e);
     $('#notice').hidden = false;
-    for (const sel of ['#filters-panel', '#map', '.results']) $(sel).hidden = true; // rien à filtrer tant que la couche n'est pas publiée
+    for (const sel of ['#filters-panel', '#score-panel', '#map', '.results']) $(sel).hidden = true; // rien à filtrer tant que la couche n'est pas publiée
     return;
   }
   const { map, payload: p } = await depData;
   payload = p;
+  const indById = new Map((p?.indicators || []).map((i) => [i.id, i]));
+  env.ind = (id) => indById.get(id);
   deps = new Map((map?.territories || []).map((t) => [t.code, t]));
   store = createStore(index);
   const regions = DEFAULTS.regions.filter((c) => index.regionByCode.has(c));
@@ -56,6 +67,7 @@ async function init() {
     onSelect: (c) => select(c.code, 'map'),
     tipLines,
   });
+  ui.score = createScorePanel($('#score'), { onChange: onScore, onReset: onScoreReset });
   ui.results = createResults($('#results'), { index, onSort, onSelect: select });
   ui.detail = createDetail($('#detail'), { index, onClose: closeDetail });
   fillMethod();
@@ -88,6 +100,8 @@ function applyHash() {
   fixPopulation(hs.crit, 'popMin');
   Object.assign(state, hs);
   ui.controls.sync(state.crit);
+  ui.score.sync(state.score);
+  if (/[&#](w|o)=/.test(location.hash)) $('#score-panel').open = true; // réglages de score dans le lien : on les montre
   update();
 }
 
@@ -145,10 +159,29 @@ function render() {
     lastBasis = crit.leftBasis;
     ui.controls.setMedian(medianLeft(communes, crit.leftBasis));
   }
+  if (listChanged) {
+    env.colAvail = columnsAvailable(communes);
+    ui.score.setLevels(Object.fromEntries(CRITERIA.map((k) => [k.id, levelOf(k, env)])));
+  }
 
   const hubIdx = hubIdxOf();
-  results = sortResults(applyFilters(communes, crit, hubIdx, hubIdx >= 0 ? index.hubs[hubIdx] : null, index.kmPerUnit), state.sort);
+  // les communes retenues ne sont recalculées que si critères ou communes changent : un curseur de poids ne refait que le score
+  const key = JSON.stringify([crit, hubIdx]);
+  if (communes !== baseCommunes || key !== baseKey) {
+    baseKey = key;
+    filterVer++;
+    base = applyFilters(communes, crit, hubIdx, hubIdx >= 0 ? index.hubs[hubIdx] : null, index.kmPerUnit);
+    baseCommunes = communes;
+  }
+  scoring = scoreCommunes(base, state.score, env, scoreMemo);
+  for (const r of base) {
+    r.sc = scoring.byCode.get(r.c.code) || null;
+    r.score = r.sc ? r.sc.score : null;
+  }
+  results = sortResults(base, state.sort);
   resultMap = null;
+  const nAct = scoring.active.length;
+  $('#score-count').textContent = nAct ? `${nAct} critère${nAct > 1 ? 's' : ''} actif${nAct > 1 ? 's' : ''}` : 'aucun critère actif';
   ui.map.setHits(results);
   ui.map.setHub(hubIdx);
   renderSelection();
@@ -169,6 +202,8 @@ function paintResults() {
     anyHub: !state.crit.hub,
     basis: state.crit.leftBasis,
     noRegion: !state.crit.regions.length,
+    scored: scoring.n,
+    scoreOn: scoring.active.length > 0,
   });
 }
 
@@ -177,7 +212,8 @@ const hubIdxOf = () => (state.crit.hub ? index.hubByCode.get(state.crit.hub).i :
 
 function tipLines(c) {
   const r = resultOf(c.code);
-  return [`${c.nom} (${c.dep})`, fmtPop(c.pop), r ? `${fmtDuration(r.min)} · ${trainsText(r.trains)}` : 'Ne correspond pas aux critères'];
+  const sc = r?.sc ? [`Score ${fmtNumber(Math.round(r.sc.score))}/100 · ${rankText(r.sc.rank, scoring.n)}`] : [];
+  return [`${c.nom} (${c.dep})`, fmtPop(c.pop), r ? `${fmtDuration(r.min)} · ${trainsText(r.trains)}` : 'Ne correspond pas aux critères', ...sc];
 }
 
 // ---------- sélection et fiche ----------
@@ -201,10 +237,10 @@ function renderSelection() {
   if (shown.code !== shownCode) ui.map.reveal(shown); // nouvelle sélection (tableau, adresse, retour arrière) : la rendre visible sur la carte
   shownCode = shown.code;
   const r = resultOf(shown.code) || null;
-  const sig = `${shown.code}|${r ? `${r.hub}.${r.min}.${r.trains}` : '-'}|${hubIdxOf()}|${state.crit.leftBasis}`;
+  const sig = `${shown.code}|${r ? `${r.hub}.${r.min}.${r.trains}` : '-'}|${hubIdxOf()}|${state.crit.leftBasis}|${filterVer}|${JSON.stringify(state.score)}`;
   if (sig === shownDetail) return; // inchangée : on ne reconstruit pas la fiche (elle garde son défilement)
   shownDetail = sig;
-  ui.detail.show({ c: shown, result: r, hubIdx: hubIdxOf(), dep: deps.get(shown.dep), payload, basis: state.crit.leftBasis });
+  ui.detail.show({ c: shown, result: r, hubIdx: hubIdxOf(), dep: deps.get(shown.dep), payload, basis: state.crit.leftBasis, score: { sc: r?.sc ?? null, n: scoring.n, parts: r ? scoring.parts(shown.code) : [], env } });
 }
 
 function select(code, how) {
@@ -245,6 +281,25 @@ function onChange(patch) {
   ui.controls.sync(state.crit);
   update();
   persist(false);
+}
+
+function onScore({ id, w, o }) {
+  if (w !== undefined) state.score.w[id] = w;
+  if (o !== undefined) {
+    state.score.o[id] = o;
+    if (!(state.score.w[id] > 0)) state.score.w[id] = 1; // choisir un sens active le critère
+  }
+  ui.score.sync(state.score);
+  schedule();
+  persist(false);
+}
+
+function onScoreReset() {
+  state.score = defaultSettings();
+  ui.score.sync(state.score);
+  ui.score.flash('Réglages par défaut');
+  schedule();
+  persist(false, true);
 }
 
 function onReset() {

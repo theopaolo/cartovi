@@ -70,11 +70,11 @@ export function createMap(root, { viewBox, deps, hubs, onSelect, tipLines }) {
     btn('Recadrer sur les communes retenues', '⤢', () => fit()),
   );
   const legendScore = h('span', { hidden: true }, [1, 2, 3, 4, 5].map((i) => h('i', { class: `lg lg-c${i}` })), 'Score : du plus au moins favorable');
-  const legendHit = legendScore.previousSibling;
+  const legendHit = h('span', {}, h('i', { class: 'lg lg-hit' }), 'Correspond aux critères');
   const legend = h(
     'p',
     { class: 'map-legend', 'aria-hidden': 'true' },
-    h('span', {}, h('i', { class: 'lg lg-hit' }), 'Correspond aux critères'),
+    legendHit,
     legendScore,
     h('span', {}, h('i', { class: 'lg lg-all' }), 'Autre commune'),
     h('span', {}, h('i', { class: 'lg lg-hub' }), 'Ville de référence'),

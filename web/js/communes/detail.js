@@ -1,6 +1,8 @@
-// detail.js — fiche d'une commune : trajets, climat politique, culture, prix, contexte départemental.
+// detail.js — fiche d'une commune : score, trajets, climat politique, culture, prix, contexte départemental.
+import { CLASSES } from '../classes.js';
 import { h } from '../dom.js';
-import { NBSP, fmtNumber, fmtValue } from '../format.js';
+import { NBSP, fmtNumber, fmtValue, ordinal, pct } from '../format.js';
+import { fmtCriterion } from './score-communes.js';
 import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from './text.js';
 
 // indicateurs départementaux rappelés (ceux qui manquent sont simplement omis)
@@ -23,8 +25,9 @@ export function createDetail(root, { index, onClose }) {
     hide: () => {
       root.hidden = true;
     },
-    /** ctx : { c, result (liaison retenue ou null), hubIdx (-1 = toutes), dep (territoire de map.json), payload (indicateurs), basis (base de la part de gauche) } */
-    show({ c, result, hubIdx, dep, payload, basis }) {
+    /** ctx : { c, result (liaison retenue ou null), hubIdx (-1 = toutes), dep (territoire de map.json), payload (indicateurs), basis (base de la part de gauche),
+     *          score ({ sc (score, rang, classe ou null), n (communes classées), parts (décomposition), env }) } */
+    show({ c, result, hubIdx, dep, payload, basis, score }) {
       root.hidden = false;
       title.textContent = `${c.nom} (${c.dep})`;
       sub.textContent = [dep?.name, dep?.region, fmtPop(c.pop)].filter(Boolean).join(' · ');
@@ -34,6 +37,7 @@ export function createDetail(root, { index, onClose }) {
           { class: result ? 'badge ok match' : 'badge match' },
           result ? 'Correspond aux critères' : 'Ne correspond pas aux critères actuels',
         ),
+        scoreBlock(result, score),
         trains(c, hubIdx, result, index, R),
         politics(c, R, basis),
         h('section', {}, h('h3', {}, `Culture à moins de ${R.culture}${NBSP}km`), culture(c)),
@@ -50,6 +54,51 @@ export function createDetail(root, { index, onClose }) {
       );
     },
   };
+}
+
+/** Score, rang dans la sélection et décomposition critère par critère (valeur, granularité, percentile, poids, contribution). */
+function scoreBlock(result, { sc, n, parts, env }) {
+  const sec = h('section', { class: 'sc-detail' }, h('h3', {}, 'Score personnalisé'));
+  if (!result) return (sec.append(h('p', { class: 'muted' }, 'Hors de la sélection : le score ne classe que les communes qui respectent les critères.')), sec);
+  if (!sc) return (sec.append(h('p', { class: 'muted' }, 'Pas de score : aucun critère actif ne s’applique à cette commune. Réglez le panneau « Score personnalisé ».')), sec);
+  const name = CLASSES[sc.cls - 1].name;
+  sec.append(
+    h(
+      'div',
+      { class: 'detail-sum' },
+      h('span', { class: 'chip', style: `background:var(--c${sc.cls});color:var(--c${sc.cls}-ink)` }, name),
+      h('p', { class: 'detail-rank' }, h('strong', {}, `${fmtNumber(Math.round(sc.score))}${NBSP}/${NBSP}100`), h('span', {}, `${ordinal(sc.rank)} sur ${fmtNumber(n)} commune${n > 1 ? 's' : ''} retenue${n > 1 ? 's' : ''}`)),
+    ),
+    h(
+      'div',
+      { class: 'table-wrap' },
+      h(
+        'table',
+        { class: 'rank-table sc-table' },
+        h('caption', { class: 'sr-only' }, 'Décomposition du score par critère'),
+        h('thead', {}, h('tr', {}, ['Critère', 'Valeur', 'Mieux que', 'Poids', 'Points'].map((t, i) => h('th', { scope: 'col', class: i ? 'c-val' : null, title: i === 2 ? 'Part des communes retenues que celle-ci devance' : i === 4 ? 'Poids × position ÷ somme des poids, sur 100' : null }, t)))),
+        h(
+          'tbody',
+          {},
+          parts.map((p) => {
+            const gran = p.x ? p.x.gran : p.level;
+            const label = gran === 'commune' ? 'commune' : gran === 'repli' ? 'département (repli)' : 'département';
+            return h(
+              'tr',
+              { class: p.x ? null : 'skip' },
+              h('td', {}, p.k.label, p.opt ? h('span', { class: 'sub' }, p.opt.label) : null, h('span', { class: 'sub' }, p.x ? label : 'valeur absente : ignoré')),
+              h('td', { class: 'c-val' }, p.x ? fmtCriterion(p.k, p.x, env) : '—'),
+              h('td', { class: 'c-val' }, p.better == null ? '—' : `${pct(p.better)}${NBSP}%`),
+              h('td', { class: 'c-val' }, fmtNumber(p.w, 1)),
+              h('td', { class: 'c-val' }, p.points == null ? '—' : fmtNumber(p.points, 1)),
+            );
+          }),
+        ),
+      ),
+    ),
+    h('p', { class: 'muted small' }, 'Un score est un angle de lecture sur cette sélection, pas un verdict. « Mieux que X\u00a0% » : part des communes retenues devancées pour ce critère.'),
+  );
+  return sec;
 }
 
 function trains(c, hubIdx, result, index, R) {

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Carteplan — chercher une commune</title>
-  <meta name="description" content="Trouver des communes selon des critères pratiques : train direct vers une grande ville, climat politique, offre culturelle, population, prix. Des filtres réglables, pas un classement.">
+  <meta name="description" content="Trouver des communes selon des critères pratiques : train direct vers une grande ville, climat politique, offre culturelle, population, prix. Des filtres réglables, puis un score à votre mesure.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231b7a5a'/%3E%3Cpath d='M4 11l2-6 3 3 3-4v7z' fill='%23f2e6b1'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="js/header-search.js"></script>
@@ -14,6 +14,7 @@
 <body>
   <nav class="skip" aria-label="Accès rapide">
     <a href="#filters-title" data-jump>Critères de recherche</a>
+    <a href="#score-title" data-jump>Score personnalisé</a>
     <a href="#results-title" data-jump>Résultats (tableau)</a>
     <a href="#methode" data-jump>Méthode et limites</a>
   </nav>
@@ -21,7 +22,7 @@
   <div class="shell">
     <header class="top">
       <h1>Carteplan</h1>
-      <p class="tagline">Chercher une <strong>commune</strong> selon des critères pratiques : train, climat politique, culture, prix. Des filtres à régler, pas un classement.</p>
+      <p class="tagline">Chercher une <strong>commune</strong> selon des critères pratiques : train, climat politique, culture, prix. Des filtres à régler, puis un score à votre mesure.</p>
       <div class="top-tools">
         <nav class="top-nav" aria-label="Pages du site">
           <a href="index.html">Départements</a>
@@ -39,11 +40,19 @@
     </header>
 
     <main class="com-app" id="app">
+      <div class="com-side">
       <details class="card panel com-filters" id="filters-panel" open>
         <summary><h2 id="filters-title" tabindex="-1">Critères</h2><span id="sum-count" class="sum-count" aria-hidden="true"></span></summary>
         <form id="filters" class="panel-body" autocomplete="off" onsubmit="return false"><p class="muted">Chargement des critères…</p></form>
         <p class="panel-body jump-results"><a class="btn" href="#map-title" data-jump>Voir la carte et les résultats ↓</a></p>
       </details>
+
+      <details class="card panel com-score" id="score-panel">
+        <summary><h2 id="score-title" tabindex="-1">Score personnalisé</h2><span id="score-count" class="sum-count" aria-hidden="true"></span></summary>
+        <div id="score" class="panel-body"></div>
+        <p class="panel-body jump-results"><a class="btn" href="#map-title" data-jump>Voir la carte et les résultats ↓</a></p>
+      </details>
+      </div>
 
       <div class="com-main">
         <section aria-labelledby="map-title">
@@ -68,7 +77,7 @@
   <section id="methode" class="method" tabindex="-1" aria-labelledby="methode-title">
     <div class="method-inner">
       <h2 id="methode-title">Méthode &amp; limites</h2>
-      <p>Cette page ne classe pas les communes et ne dit pas où il fait « bon vivre » : elle les <strong>filtre</strong> selon des critères que vous réglez. Une commune est retenue si elle respecte tous les critères actifs ; chacun peut rester sur « aucun ». Ce qui compte pour vous n’est pas forcément ce qui compte pour quelqu’un d’autre, et la liste obtenue est un point de départ pour explorer, pas une recommandation.</p>
+      <p>Cette page ne dit pas où il fait « bon vivre » : elle commence par <strong>filtrer</strong> les communes selon des critères que vous réglez. Une commune est retenue si elle respecte tous les critères actifs ; chacun peut rester sur « aucun ». Un <a href="#score-methode" data-jump>score personnalisé</a> ordonne ensuite les communes retenues selon vos priorités. Ce qui compte pour vous n’est pas forcément ce qui compte pour quelqu’un d’autre, et la liste obtenue est un point de départ pour explorer, pas une recommandation.</p>
 
       <h3>Ce que mesure chaque critère</h3>
       <ul>
@@ -80,16 +89,26 @@
         <li><strong>Population.</strong> Population légale d’après geo.api.gouv.fr (INSEE). Les tailles proposées sont indicatives : village sous 2&nbsp;000 habitants, bourg de 2&nbsp;000 à 10&nbsp;000, petite ville de 10&nbsp;000 à 50&nbsp;000, ville au-dessus.</li>
       </ul>
 
+      <h3 id="score-methode" tabindex="-1">Score personnalisé</h3>
+      <p>Le panneau « Score personnalisé » donne à chaque commune retenue une note de 0 à 100, à partir d’un poids de 0 à 3 que vous réglez pour chaque critère (0 : le critère est ignoré). Quatre règles :</p>
+      <ul>
+        <li><strong>Relatif à la sélection, pas à la France.</strong> Seules les communes qui passent les filtres sont classées. Pour chaque critère, une commune est située parmi les communes retenues qui ont une valeur (rang en pourcentage, ex æquo à égalité, dans le sens voulu) ; le score est la moyenne de ces positions pondérée par vos poids, recalculée à chaque changement de filtre. « 100 » veut dire « en tête de cette sélection », pas « excellente » : en resserrant ou en élargissant les filtres, les notes changent. Quand une valeur manque pour une commune, le critère est écarté pour elle et les poids restants sont rééquilibrés. Les cinq classes (de « très favorable » à « très défavorable ») sont les cinquièmes du classement, avec les couleurs de la carte des départements.</li>
+        <li><strong>Pas de « bon sens » imposé aux critères de préférence.</strong> Le climat politique et la taille de la commune n’ont pas de sens universellement meilleur : ils sont à <strong>0 par défaut</strong>, et c’est vous qui choisissez le sens (« plus à gauche » ou « plus à droite » ; « plus petite » ou « plus grande »). Le prix a aussi un sens à choisir (« moins cher » par défaut, poids 1,5). Les autres critères ont un sens évident : moins de risques, de restrictions d’eau ou d’artificialisation, un train plus court et plus fréquent, plus de culture.</li>
+        <li><strong>Granularité la plus fine disponible.</strong> Les critères du département (sols pollués, restrictions d’eau, cours d’eau à sec, bilan hydrique, jours chauds en 2050) valent pour toutes ses communes ; quand une valeur existe à la commune (prix, densité, artificialisation sur 5 ans d’après le Cerema, catastrophes naturelles reconnues sur 20 ans), c’est elle qui est utilisée, de sorte qu’une commune se distingue de son département. Chaque critère porte un badge « commune » ou « département ». Une valeur du département ne remplace une valeur communale manquante que si l’unité est la même ; pour le nucléaire et les sites Seveso (<span data-radius="seveso">10</span>&nbsp;km autour de la commune), dont les unités diffèrent, le critère bascule entièrement sur l’indicateur du département, badge « département (repli) », seulement si les données communales manquent pour toutes les communes.</li>
+        <li><strong>Nucléaire plafonné à 40&nbsp;km.</strong> On compte la distance entre le centre de la commune et la centrale la plus proche, mais au-delà de 40&nbsp;km (deux fois le rayon de 20&nbsp;km des plans particuliers d’intervention) la distance ne change plus rien : toutes les communes plus éloignées sont à égalité.</li>
+      </ul>
+      <p>Les poids par défaut sont un point de départ raisonnable, pas une vérité : l’offre culturelle additionne cinémas, scènes, musées, librairies et conservatoires, les lieux labellisés comptant double. <strong>Un score est un angle de lecture, pas un verdict</strong> : deux personnes raisonnables n’obtiendront pas le même classement, et un bon score ne dit rien de ce qu’on ressent en visitant. Dans la fiche d’une commune, le détail montre ce que chaque critère apporte.</p>
+
       <h3>Limites</h3>
       <ul>
         <li><strong>Trains directs seulement.</strong> Un trajet avec correspondance n’apparaît pas : une commune reliée à Lyon via une autre gare peut être absente d’une recherche « Lyon ». Les cars, les week-ends, les jours fériés et les perturbations sont ignorés, et un jour de référence ne dit rien de la régularité sur l’année.</li>
-        <li><strong>Des filtres, pas un jugement.</strong> Aucun critère ne dit si une commune est « bien » ; les critères politiques décrivent un électorat, pas les personnes que vous y rencontrerez. Le rayon de 10&nbsp;km autour d’une banlieue mesure surtout la ville voisine.</li>
+        <li><strong>Des filtres et un score, pas un jugement.</strong> Aucun critère ne dit si une commune est « bien » ; les critères politiques décrivent un électorat, pas les personnes que vous y rencontrerez. Le rayon de 10&nbsp;km autour d’une banlieue mesure surtout la ville voisine.</li>
         <li><strong>Données absentes.</strong> Une commune sans prix connu est gardée par défaut quand on fixe un plafond (case à décocher) ; une commune sans résultat électoral est écartée dès qu’un minimum de gauche est fixé.</li>
         <li><strong>Données publiques, donc imparfaites.</strong> Un lieu absent de Basilic, un horaire modifié ou une commune récemment fusionnée peuvent fausser un résultat. Visitez, vérifiez les horaires à jour et le terrain avant toute décision.</li>
       </ul>
 
       <h3>Tri des résultats</h3>
-      <p>Par défaut, le tableau est trié par temps de trajet croissant, puis par nombre de trains par jour décroissant. Chaque colonne (ou le sélecteur « Trier par ») permet de trier autrement. L’offre culturelle triée est la somme des cinémas, scènes et lieux labellisés ; la part de gauche trie sur la base choisie. Les communes sans valeur pour la colonne triée viennent en dernier.</p>
+      <p>Par défaut, le tableau est trié par score décroissant (départage : temps de trajet, puis nombre de trains par jour). Chaque colonne (ou le sélecteur « Trier par ») permet de trier autrement. L’offre culturelle triée est la somme des cinémas, scènes et lieux labellisés ; la part de gauche trie sur la base choisie. Les communes sans valeur pour la colonne triée (ou sans score) viennent en dernier.</p>
 
       <h3>Données</h3>
       <p>

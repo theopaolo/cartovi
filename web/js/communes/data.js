@@ -46,7 +46,7 @@ export async function loadIndex() {
     reference_day: raw.reference_day,
     viewBox: raw.viewBox || '0 0 1000 931',
     kmPerUnit: scale,
-    radius: { gare: 6, vote: 10, culture: 15, ...raw.radius_km },
+    radius: { gare: 6, vote: 10, culture: 15, seveso: 10, ...raw.radius_km },
     columns: raw.columns,
     hubs,
     hubByCode: new Map(hubs.map((h) => [h.code, h])),
