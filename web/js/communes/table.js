@@ -1,7 +1,8 @@
 // table.js — résultats : décompte, choix du tri et tableau des communes (vue principale, accessible au clavier).
 // Le tableau est plafonné à PAGE lignes (« Afficher plus ») : 35 000 lignes de DOM sinon.
+import { CLASSES } from '../classes.js';
 import { h } from '../dom.js';
-import { NBSP, fmtNumber } from '../format.js';
+import { NBSP, fmtNumber, rankText } from '../format.js';
 import { SORTS } from './filter.js';
 import { cultureText, fmtDuration, fmtPct, fmtPop, fmtPrice, plural, stationText, trainsText } from './text.js';
 
@@ -10,6 +11,7 @@ const PAGE = 200;
 // colonne → clé de tri ; `val` : colonne numérique (alignée à droite)
 const COLS = [
   { id: 'nom', sort: 'nom', label: 'Commune' },
+  { id: 'score', sort: 'score', label: 'Score' },
   { id: 'pop', sort: 'pop', label: 'Population', val: true },
   { id: 'time', sort: 'time', label: 'Train direct' },
   { id: 'km', sort: 'km', label: 'Gare' },
@@ -18,13 +20,25 @@ const COLS = [
   { id: 'prix', sort: 'prix', label: 'Prix maisons', val: true },
 ];
 
+/** Score 0–100 sur fond de la couleur de sa classe, rang dessous. */
+function scoreCell(sc, n) {
+  if (!sc) return h('td', { class: 'c-score' }, h('span', { class: 'muted' }, '—'));
+  const name = CLASSES[sc.cls - 1].name;
+  return h(
+    'td',
+    { class: 'c-score' },
+    h('span', { class: 'chip sc-chip', style: `background:var(--c${sc.cls});color:var(--c${sc.cls}-ink)`, title: name }, fmtNumber(Math.round(sc.score)), h('span', { class: 'sr-only' }, ` sur 100, ${name}`)),
+    h('span', { class: 'sub' }, rankText(sc.rank, n)),
+  );
+}
+
 export function createResults(root, { index, onSort, onSelect }) {
   const R = index.radius.vote;
   const basisText = (b) => (b === 'zone' ? `${R}${NBSP}km` : 'commune');
   let list = [];
   let shown = PAGE;
-  let sort = { key: 'time', dir: 1 };
-  let ctx = { anyHub: false, basis: 'commune' };
+  let sort = { key: 'score', dir: -1 };
+  let ctx = { anyHub: false, basis: 'commune', scored: 0 };
   let selected = null;
 
   const count = h('p', { class: 'res-count', 'aria-hidden': 'true' });
@@ -89,6 +103,7 @@ export function createResults(root, { index, onSort, onSelect }) {
         // colonnes masquées en vue étroite : on les rappelle sous le nom (copie décorative)
         h('span', { class: 'narrow-only', 'aria-hidden': 'true' }, `${fmtPop(c.pop)}${c.prix != null ? ` · ${fmtPrice(c.prix)}` : ''}`),
       ),
+      scoreCell(r.sc, ctx.scored),
       h('td', { class: 'c-pop c-val' }, fmtNumber(c.pop)),
       h(
         'td',
@@ -145,7 +160,7 @@ export function createResults(root, { index, onSort, onSelect }) {
       const n = list.length;
       const text = info.noRegion ? 'Aucune région cochée' : `${plural(n, 'commune')} ${n > 1 ? 'correspondent' : 'correspond'}`;
       countMain.textContent = text;
-      countSub.textContent = info.noRegion ? '' : ` · sur ${fmtNumber(info.loaded)} dans les régions cochées${info.loading ? ' (chargement…)' : ''}`;
+      countSub.textContent = info.noRegion ? '' : ` · sur ${fmtNumber(info.loaded)} dans les régions cochées${info.loading ? ' (chargement…)' : ''}${info.scoreOn ? '' : ' · aucun critère de score actif'}`;
       wrap.hidden = moreBox.hidden = !n;
       msg.hidden = !!n || !!info.loading;
       msg.textContent = info.noRegion

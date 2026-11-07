@@ -1,6 +1,6 @@
 // filter.js — critères, filtrage et tri (calculs purs, aucun accès au DOM).
 //
-// Aucun score : une commune correspond ou non. Pour le trajet, l'unité est la « liaison » :
+// Ici, pas de score : une commune correspond ou non (le score vient après, score-communes.js). Pour le trajet, l'unité est la « liaison » :
 // un trajet direct vers une ville de référence, avec sa durée, son nombre de trains par jour et
 // la distance à la gare utilisée. Une commune correspond s'il existe UNE liaison qui respecte
 // ensemble le temps maximal, le nombre minimal de trains et la distance maximale à la gare ;
@@ -44,7 +44,7 @@ export const DEFAULTS = {
   priceUnknown: true, // garder les communes sans prix connu (moins de 10 ventes) quand un plafond est fixé
 };
 
-export const DEFAULT_SORT = { key: 'time', dir: 1 };
+export const DEFAULT_SORT = { key: 'score', dir: -1 }; // meilleur score d'abord
 
 /**
  * Communes correspondant aux critères, avec leur meilleure liaison.
@@ -93,6 +93,7 @@ export function applyFilters(communes, crit, hubIdx, hub, kmPerUnit) {
 
 // Colonnes triables. `first` : sens du premier clic (1 = croissant) ; `val` : valeur comparée (null = en dernier).
 export const SORTS = {
+  score: { label: 'Score personnalisé', first: -1, val: (r) => r.score }, // r.score : posé par main.js (score-communes.js)
   time: { label: 'Temps de trajet', first: 1, val: (r) => r.min },
   trains: { label: 'Trains par jour', first: -1, val: (r) => r.trains },
   nom: { label: 'Nom', first: 1, val: (r) => r.c.key },

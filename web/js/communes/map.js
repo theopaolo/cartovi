@@ -47,7 +47,9 @@ export function createMap(root, { viewBox, deps, hubs, onSelect, tipLines }) {
   }
 
   const dotsAll = s('path', { class: 'cmap-all' });
-  const dotsHit = s('path', { class: 'cmap-hit' });
+  const dotsHit = s('path', { class: 'cmap-hit' }); // communes retenues sans score
+  const dotsHalo = s('path', { class: 'cmap-halo' }); // fin contour sombre : les classes claires restent lisibles sur le fond
+  const dotsCls = [1, 2, 3, 4, 5].map((i) => s('path', { class: `cmap-c cmap-c${i}` })); // communes retenues, une couche par classe de score
   const hubsD = hubs.map(pt).join('');
   const hubHalo = s('path', { class: 'cmap-hub-halo', d: hubsD });
   const hubMark = s('path', { class: 'cmap-hub', d: hubsD });
@@ -56,7 +58,7 @@ export function createMap(root, { viewBox, deps, hubs, onSelect, tipLines }) {
   const gLabels = s('g', { class: 'cmap-lbls' }, [...labels.values()]);
   const hover = s('path', { class: 'cmap-hover' });
   const sel = [s('path', { class: 'cmap-sel-a' }), s('path', { class: 'cmap-sel-b' }), s('path', { class: 'cmap-sel-c' })];
-  svg.append(gBase, dotsAll, dotsHit, hubHalo, hubMark, ...hubSel, gLabels, hover, ...sel);
+  svg.append(gBase, dotsAll, dotsHalo, dotsHit, ...[...dotsCls].reverse(), hubHalo, hubMark, ...hubSel, gLabels, hover, ...sel);
 
   const tip = h('div', { class: 'tip', 'aria-hidden': 'true', hidden: true });
   const btn = (label, text, fn) => h('button', { type: 'button', class: 'map-btn', 'aria-label': label, title: label, onclick: fn }, text);
@@ -67,10 +69,13 @@ export function createMap(root, { viewBox, deps, hubs, onSelect, tipLines }) {
     btn('Zoom arrière', '−', () => zoomAt(1 / 1.6)),
     btn('Recadrer sur les communes retenues', '⤢', () => fit()),
   );
+  const legendScore = h('span', { hidden: true }, [1, 2, 3, 4, 5].map((i) => h('i', { class: `lg lg-c${i}` })), 'Score : du plus au moins favorable');
+  const legendHit = legendScore.previousSibling;
   const legend = h(
     'p',
     { class: 'map-legend', 'aria-hidden': 'true' },
     h('span', {}, h('i', { class: 'lg lg-hit' }), 'Correspond aux critères'),
+    legendScore,
     h('span', {}, h('i', { class: 'lg lg-all' }), 'Autre commune'),
     h('span', {}, h('i', { class: 'lg lg-hub' }), 'Ville de référence'),
   );
@@ -296,7 +301,14 @@ export function createMap(root, { viewBox, deps, hubs, onSelect, tipLines }) {
     setHits(results) {
       hits = results;
       hitSet = null;
-      dotsHit.setAttribute('d', results.map((r) => pt(r.c)).join(''));
+      const byCls = [[], [], [], [], [], []]; // 0 : sans score
+      for (const r of results) byCls[r.sc ? r.sc.cls : 0].push(pt(r.c));
+      dotsHit.setAttribute('d', byCls[0].join(''));
+      dotsCls.forEach((p, i) => p.setAttribute('d', byCls[i + 1].join('')));
+      dotsHalo.setAttribute('d', results.map((r) => pt(r.c)).join(''));
+      const scored = results.some((r) => r.sc);
+      legendScore.hidden = !scored;
+      legendHit.hidden = scored;
     },
     setHub(idx) {
       if (idx === selHub) return;

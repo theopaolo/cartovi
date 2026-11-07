@@ -4,7 +4,9 @@
 // pmin/pmax population · g % gauche min · gb base de la part de gauche (« zone » = rayon de 10 km)
 // tr trains/j min · km distance gare max · ci/sc cinémas/scènes min · lb lieu labellisé · px prix max
 // pu 0 = écarter les prix inconnus · s tri (« - » devant = décroissant) · c commune sélectionnée
+// w poids du score ≠ défaut (w=tps:2,pol:1.5) · o sens choisi ≠ défaut (o=prx:plus,pol:gauche) — ids : score-communes.js
 import { SORTS } from './filter.js';
+import { CRITERION, W_MAX, W_STEP, defaultSettings } from './score-communes.js';
 
 // clé du fragment → [champ des critères, minimum, maximum]
 const NUM = {
@@ -23,12 +25,13 @@ const NUM = {
 /**
  * Lit le fragment. Les clés inconnues et les valeurs invalides sont ignorées (le défaut s'applique).
  * @param {{regions:Set<string>, hubs:Set<string>}} known  codes valides
- * @returns {{crit:object, sort:object, selected:string|null}}
+ * @returns {{crit:object, sort:object, selected:string|null, score:object}}
  */
 export function parseHash(hash, defaults, defaultSort, known) {
   const crit = { ...defaults };
   const sort = { ...defaultSort };
   let selected = null;
+  const score = defaultSettings();
   for (const part of hash.replace(/^#/, '').split('&')) {
     const eq = part.indexOf('=');
     if (eq < 0) continue;
@@ -55,13 +58,23 @@ export function parseHash(hash, defaults, defaultSort, known) {
     else if (k === 's') {
       const key = v.replace(/^-/, '');
       if (Object.hasOwn(SORTS, key)) Object.assign(sort, { key, dir: v.startsWith('-') ? -1 : 1 });
+    } else if (k === 'w' || k === 'o') {
+      for (const pair of v.split(',')) {
+        const [id, val = ''] = pair.split(':');
+        const cr = Object.hasOwn(CRITERION, id) ? CRITERION[id] : null;
+        if (!cr) continue;
+        if (k === 'w') {
+          const n = Number(val);
+          if (val !== '' && Number.isFinite(n)) score.w[id] = Math.round(Math.min(W_MAX, Math.max(0, n)) / W_STEP) * W_STEP;
+        } else if (cr.choice?.some((o) => o.id === val)) score.o[id] = val;
+      }
     } else if (k === 'c' && /^[0-9AB]{5}$/.test(v)) selected = v;
   }
-  return { crit, sort, selected };
+  return { crit, sort, selected, score };
 }
 
 /** Fragment correspondant à l'état (chaîne vide si tout est par défaut). */
-export function hashFor({ crit, sort, selected }, defaults, defaultSort) {
+export function hashFor({ crit, sort, selected, score }, defaults, defaultSort) {
   const parts = [];
   const sameRegions = crit.regions.length === defaults.regions.length && crit.regions.every((c) => defaults.regions.includes(c));
   if (!sameRegions) parts.push(`r=${[...crit.regions].sort().join(',')}`);
@@ -73,6 +86,11 @@ export function hashFor({ crit, sort, selected }, defaults, defaultSort) {
   if (sort.key !== defaultSort.key || sort.dir !== defaultSort.dir) {
     parts.push(`s=${sort.dir < 0 ? '-' : ''}${sort.key}`);
   }
+  const def = defaultSettings();
+  const w = Object.keys(def.w).filter((id) => score.w[id] !== def.w[id]).map((id) => `${id}:${score.w[id]}`);
+  const o = Object.keys(def.o).filter((id) => score.o[id] !== def.o[id] && score.o[id]).map((id) => `${id}:${score.o[id]}`);
+  if (w.length) parts.push(`w=${w.join(',')}`);
+  if (o.length) parts.push(`o=${o.join(',')}`);
   if (selected) parts.push(`c=${encodeURIComponent(selected)}`);
   return parts.length ? `#${parts.join('&')}` : '';
 }
