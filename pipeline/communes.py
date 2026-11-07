@@ -378,6 +378,30 @@ def build(ctx):
         meta["regions"].append({"code": code, "name": name, "file": f"{code}.json", "communes": len(rows)})
         (OUT / f"{code}.json").write_text(json.dumps({"rows": rows}, ensure_ascii=False, separators=(",", ":")), "utf-8")
     (OUT / "index.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    write_search_index(by_region, columns)
+    return sum(len(r) for r in by_region.values())
+
+
+def write_search_index(by_region, columns):
+    """Index de recherche par nom, chargé seul par la page Recherche ; la fiche complète
+    vient ensuite du fichier de la région. Lignes [code, nom, population] triées par
+    population décroissante (les homonymes les plus peuplés d'abord) ; le département
+    se lit dans le code INSEE, la région dans `region_of_dep`."""
+    col = {c: i for i, c in enumerate(columns)}
+    rows = [[r[col["code"]], r[col["nom"]], r[col["pop"]]] for rs in by_region.values() for r in rs]
+    rows.sort(key=lambda r: (-r[2], r[1]))
+    (OUT / "noms.json").write_text(
+        json.dumps({"columns": ["code", "nom", "pop"], "region_of_dep": REGION_CODE, "rows": rows},
+                   ensure_ascii=False, separators=(",", ":")),
+        "utf-8",
+    )
+
+
+def rebuild_search_index():
+    """Régénère noms.json depuis les fichiers régionaux déjà publiés (sans rien télécharger)."""
+    meta = json.loads((OUT / "index.json").read_text("utf-8"))
+    by_region = {r["code"]: json.loads((OUT / r["file"]).read_text("utf-8"))["rows"] for r in meta["regions"]}
+    write_search_index(by_region, meta["columns"])
     return sum(len(r) for r in by_region.values())
 
 
@@ -386,7 +410,11 @@ def main(argv=None):
     p.add_argument("--force", action="store_true")
     p.add_argument("--cache", action="store_true")
     p.add_argument("--db", default=ROOT / "data" / "carteplan.sqlite", type=Path)
+    p.add_argument("--index-only", action="store_true", help="régénère seulement l'index de recherche")
     args = p.parse_args(argv)
+    if args.index_only:
+        print(f"index de recherche : {rebuild_search_index()} communes")
+        return 0
     con = db.connect(args.db)
     last = con.execute("SELECT MAX(finished_at) t FROM run WHERE source_id='communes' AND status='ok'").fetchone()["t"]
     today = datetime.date.today()
@@ -396,6 +424,8 @@ def main(argv=None):
         version = None
     fresh = last and (today - datetime.date.fromisoformat(last[:10])).days < MAX_AGE_DAYS
     if not args.force and fresh and version == VERSION:
+        if not (OUT / "noms.json").exists():
+            print(f"index de recherche : {rebuild_search_index()} communes")
         print(f"couche communale à jour ({last[:10]}), rien à faire")
         return 0
     ctx = SimpleNamespace(http=Http(use_cache=args.cache), territories=territories.load(), log=print,
