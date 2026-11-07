@@ -100,6 +100,7 @@ export function createResults(root, { index, onSort, onSelect }) {
         { class: 'c-nom' },
         h('button', { type: 'button', class: 'link' }, c.nom),
         h('span', { class: 'dep' }, ` (${c.dep})`),
+        r.nr ? h('span', { class: 'sub nr' }, 'risques non renseignés') : null, // case de risque cochée, commune absente de GASPAR : gardée, non vérifiée
         // colonnes masquées en vue étroite : on les rappelle sous le nom (copie décorative)
         h('span', { class: 'narrow-only', 'aria-hidden': 'true' }, `${fmtPop(c.pop)}${c.prix != null ? ` · ${fmtPrice(c.prix)}` : ''}`),
       ),

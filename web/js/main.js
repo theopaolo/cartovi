@@ -1,6 +1,7 @@
 // main.js — point d'entrée : charge les données, relie l'état (URL, poids, mode, sélection) aux vues.
 import { loadData } from './data.js';
-import { indicatorScores } from './score.js';
+import { DEFAULT_NORM, indicatorScores, isNorm } from './score.js';
+import { createNormToggle } from './norm-toggle.js';
 import { computeViews, describe } from './view.js';
 import { createMap } from './map.js';
 import { createDetail } from './panel.js';
@@ -14,7 +15,7 @@ import { h, rafThrottle, prefersReducedMotion } from './dom.js';
 const $ = (sel) => document.querySelector(sel);
 const narrow = () => matchMedia('(max-width: 959px)').matches; // mise en page empilée (panneau détail en feuille basse)
 
-const state = { mode: 'composite', selected: null, weights: {} };
+const state = { mode: 'composite', selected: null, weights: {}, norm: DEFAULT_NORM };
 let data = null; // indicators.json normalisé, ou null s'il n'est pas (encore) disponible
 let byCode;
 let codes;
@@ -50,6 +51,9 @@ async function init() {
   ui.map = createMap($('#map'), map, { onSelect: select });
   ui.detail = createDetail($('#detail'), { onClose: closeDetail });
   ui.weights = createWeights($('#weights'), { data, defaults, onChange, onReset, onCopy });
+  ui.norm = createNormToggle(onNorm);
+  $('#norm').replaceWith(ui.norm.el);
+  ui.norm.el.id = 'norm';
   ui.ranking = createRanking($('#ranking'), map.territories, { onSelect: select });
   renderSources($('#sources'), data, codes.length, codes);
   renderGenerated($('#generated'), data);
@@ -97,8 +101,22 @@ function applyHash() {
   for (const [id, w] of Object.entries(hs.weights || {})) if (id in defaults) state.weights[id] = Math.min(3, Math.max(0, w));
   state.mode = data?.indicators.some((i) => i.id === hs.mode) ? hs.mode : 'composite';
   state.selected = byCode.has(hs.selected) ? hs.selected : null;
+  setNorm(isNorm(hs.norm) ? hs.norm : DEFAULT_NORM);
   $('#mode').value = state.mode;
   refresh();
+}
+
+/** Mode de lecture (centiles ou min-max) : les scores par indicateur sont recalculés, les poids n'y changent rien. */
+function setNorm(norm) {
+  state.norm = norm;
+  ui.norm.set(norm);
+  if (data) scores = indicatorScores(data.indicators, codes, norm);
+}
+function onNorm(norm) {
+  if (norm === state.norm) return;
+  setNorm(norm);
+  refresh();
+  persist(true);
 }
 
 /** Recalcule tout (rapide : 96 départements × quelques dizaines d'indicateurs). */
@@ -125,6 +143,7 @@ function renderSelection() {
     scores,
     weights: state.weights,
     activeId: state.mode === 'composite' ? null : state.mode,
+    norm: state.norm,
   });
 }
 

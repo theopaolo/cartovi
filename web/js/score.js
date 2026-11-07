@@ -1,12 +1,22 @@
 // score.js — calculs purs (aucun accès au DOM) : percentiles, indice composite, rangs, classes.
 //
 // Principe (voir « Méthode & sources ») :
-//  1. score d'un indicateur = rang percentile du département parmi ceux qui ont une valeur,
-//     entre 0 et 1 ; inversé (1 − p) si « plus bas = mieux » (direction = -1) ;
+//  1. score d'un indicateur entre 0 et 1, selon le mode de lecture (NORMS) :
+//     - « rank » (défaut) : rang percentile du département parmi ceux qui ont une valeur ;
+//     - « minmax » : (v − min) / (max − min), qui garde l'ampleur des écarts ;
+//     inversé (1 − p) si « plus bas = mieux » (direction = -1) ;
 //  2. indice composite = Σ wᵢ·sᵢ / Σ wᵢ sur les indicateurs renseignés avec wᵢ > 0 ;
 //  3. classes = quintiles du rang (la classe 1 regroupe les ≈ 20 % les mieux classés).
 
 export const N_CLASSES = 5;
+
+/** Modes de lecture d'un indicateur : par rang (centiles) ou par écart (min-max). */
+export const NORMS = [
+  { id: 'rank', label: 'par rang (centiles)' },
+  { id: 'minmax', label: 'par écart (min-max)' },
+];
+export const DEFAULT_NORM = 'rank';
+export const isNorm = (id) => NORMS.some((n) => n.id === id);
 const EPS = 1e-9; // tolérance pour considérer deux flottants comme ex æquo
 
 /**
@@ -36,10 +46,37 @@ export function percentileScores(values, direction = 1, only) {
   return out;
 }
 
-/** Scores de tous les indicateurs : { idIndicateur: { code: score } }. Indépendant des poids. */
-export function indicatorScores(indicators, codes) {
+/**
+ * Même signature et même forme que percentileScores, mais par écart : (v − min) / (max − min) sur les valeurs
+ * renseignées, inversé si direction = -1. Garde l'ampleur des écarts, mais une valeur extrême écrase tout le monde.
+ * Toutes les valeurs égales (ou une seule) : 0,5 pour chacune.
+ */
+export function minmaxScores(values, direction = 1, only) {
+  const allowed = only ? new Set(only) : null;
+  const entries = Object.entries(values).filter(([code, v]) => Number.isFinite(v) && (!allowed || allowed.has(code)));
   const out = {};
-  for (const ind of indicators) out[ind.id] = percentileScores(ind.values || {}, ind.direction, codes);
+  if (!entries.length) return out;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const [, v] of entries) {
+    lo = Math.min(lo, v);
+    hi = Math.max(hi, v);
+  }
+  for (const [code, v] of entries) {
+    const p = hi - lo < EPS ? 0.5 : (v - lo) / (hi - lo);
+    out[code] = direction < 0 && hi - lo >= EPS ? 1 - p : p;
+  }
+  return out;
+}
+
+/** Fonction de score du mode demandé (percentileScores par défaut). */
+export const scorerOf = (norm) => (norm === 'minmax' ? minmaxScores : percentileScores);
+
+/** Scores de tous les indicateurs : { idIndicateur: { code: score } }. Indépendant des poids. */
+export function indicatorScores(indicators, codes, norm = DEFAULT_NORM) {
+  const out = {};
+  const score = scorerOf(norm);
+  for (const ind of indicators) out[ind.id] = score(ind.values || {}, ind.direction, codes);
   return out;
 }
 

@@ -27,7 +27,6 @@
           <a href="index.html" aria-current="page">Départements</a>
           <a href="communes.html">Communes</a>
           <a href="recherche.html">Recherche</a>
-          <a href="flux.html">Flux &amp; limites</a>
           <a href="#methode" data-jump>Méthode &amp; sources</a>
         </nav>
         <form class="top-search" id="top-search" role="search" aria-label="Rechercher une commune" action="recherche.html" method="get">
@@ -46,6 +45,7 @@
             <span>Afficher</span>
             <select id="mode" aria-describedby="mode-help"><option value="composite">Indice composite</option></select>
           </label>
+          <div class="field norm-field"><span id="norm-label">Lecture</span><div id="norm"></div></div>
           <label class="check"><input type="checkbox" id="labels" checked><span>Noms</span></label>
         </div>
         <p id="notice" class="notice" role="status" hidden>
@@ -81,11 +81,19 @@
 
       <h3>Comment l’indice est calculé</h3>
       <ol>
-        <li><strong>Un score par indicateur.</strong> On classe les départements qui ont une valeur et on retient leur rang percentile (rang moyen en cas d’égalité), de 0 à 1. Si « plus bas = mieux » (prix, risque…), le score est inversé&nbsp;: 1 − p. Un score de 0,8 se lit « mieux que 80&nbsp;% des départements ». Les percentiles résistent aux valeurs extrêmes (la densité de Paris n’écrase pas les autres) mais ignorent l’ampleur des écarts.</li>
+        <li><strong>Un score par indicateur.</strong> Chaque département qui a une valeur reçoit un score de 0 à 1 (1 = le plus favorable ; si « plus bas = mieux », comme les prix ou le risque, le score est inversé&nbsp;: 1 − s). Deux lectures sont possibles, au choix avec la bascule « Lecture » au-dessus de la carte (<a href="#lecture" data-jump>voir plus bas</a>). Par défaut, <em>par rang</em>&nbsp;: le score est le rang percentile (rang moyen en cas d’égalité), et 0,8 se lit « mieux que 80&nbsp;% des départements ».</li>
         <li><strong>Un indice composite.</strong> Moyenne pondérée des scores, Σ wᵢ·sᵢ / Σ wᵢ, sur les indicateurs renseignés pour le département et de poids wᵢ&nbsp;&gt;&nbsp;0, affichée sur 100. Une valeur manquante n’est ni une bonne ni une mauvaise note : l’indicateur est simplement ignoré pour ce département (le détail indique « calculé sur n indicateurs »).</li>
         <li><strong>Cinq classes.</strong> Les départements sont classés par indice décroissant puis répartis en quintiles : environ 20&nbsp;% par classe, la classe «&nbsp;Très favorable&nbsp;» regroupant les mieux classés. Le rang (« 12ᵉ / 96 ») donne la position exacte ; les ex æquo partagent le même rang.</li>
         <li><strong>Mode « un indicateur ».</strong> La carte colore alors les valeurs brutes par quintiles (légende avec les bornes réelles et l’unité). Les classes par quantiles ne dépendent pas de l’échelle, linéaire ou logarithmique.</li>
       </ol>
+
+      <h3 id="lecture" tabindex="-1">Deux façons de lire les écarts : rang ou min-max</h3>
+      <p>La bascule « Lecture » change la manière de transformer une valeur brute en score entre 0 et 1, avant la moyenne pondérée. Le reste du calcul (pondération, rang, cinq classes) ne change pas.</p>
+      <ul>
+        <li><strong>Par rang (centiles), le mode par défaut.</strong> On ne garde que l’ordre des départements. C’est robuste aux valeurs extrêmes (la densité de Paris n’écrase pas les autres), mais cela efface les ordres de grandeur : un département à 1 sinistre et un autre à 2 sont aussi éloignés qu’un département à 1 et un autre à 20, s’ils sont voisins dans le classement.</li>
+        <li><strong>Par écart (min-max).</strong> Le score est (valeur − minimum) ÷ (maximum − minimum), donc la position sur l’échelle réelle. Cela garde les ordres de grandeur, mais une seule valeur extrême écrase tous les autres départements près d’une même extrémité. C’est la méthode de l’indice de développement humain (ONU) et de l’indice IBV d’Alternatives Économiques. Quand toutes les valeurs sont égales, chaque département reçoit 0,5.</li>
+        <li><strong>Le classement qui dépend de ce choix est lui-même une information.</strong> Un département bien classé dans les deux lectures l’est pour de bonnes raisons ; un département qui change beaucoup de rang d’une lecture à l’autre le doit à quelques valeurs extrêmes ou à des écarts faibles entre voisins. Comparez les deux avant de conclure.</li>
+      </ul>
 
       <h3>Un classement relatif, pas un jugement absolu</h3>
       <p>Les classes comparent les départements entre eux : il y a toujours environ 20&nbsp;% de « très favorables » et 20&nbsp;% de « très défavorables », même si tous les départements étaient excellents ou tous médiocres. Un département « défavorable » n’est pas « invivable » : il est moins bien placé que la plupart des autres selon les critères et les poids choisis.</p>
@@ -94,7 +102,7 @@
       <ul>
         <li><strong>Le sens de chaque indicateur est un choix</strong> (rappelé dans la liste ci-dessous). Par exemple, compter la densité de population comme défavorable est un choix pour l’autosuffisance (plus de terre et d’eau par habitant, moins de pression sur les ressources), pas une vérité universelle : pour un projet qui dépend d’un emploi, de services ou de transports, le signe s’inverserait.</li>
         <li><strong>Les poids par défaut sont arbitraires.</strong> Réglez-les dans le panneau « Pondérations » ; un poids à 0 retire l’indicateur. Un thème qui compte plus d’indicateurs pèse mécaniquement plus, et des indicateurs corrélés se renforcent entre eux : la part de chaque thème est affichée à côté des curseurs.</li>
-        <li><strong>Une configuration se partage par son lien</strong> : département, indicateur affiché et poids modifiés sont encodés dans l’adresse de la page.</li>
+        <li><strong>Une configuration se partage par son lien</strong> : département, indicateur affiché, lecture (rang ou écart) et poids modifiés sont encodés dans l’adresse de la page.</li>
       </ul>
 
       <h3>Limites</h3>
@@ -114,6 +122,7 @@
       </p>
       <p id="generated" class="muted"></p>
       <p class="muted small">La collecte est automatique et hebdomadaire. Une source en échec n’écrase jamais les dernières valeurs valides : elle est signalée « périmé ».</p>
+      <p class="muted small flux-link"><a href="flux.html">Expérimentation : le vent de la semaine et la maille des données (hors classement)</a></p>
     </div>
   </section>
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Carteplan — rechercher une commune</title>
-  <meta name="description" content="Retrouver une commune par son nom, puis lire ses valeurs dans toutes les catégories du projet : train, climat politique, culture, prix, indicateurs du département, vent. Comparer jusqu’à quatre communes.">
+  <meta name="description" content="Retrouver une commune par son nom, puis lire ses valeurs dans toutes les catégories du projet : train, climat politique, culture, prix, risques, indicateurs du département. Comparer jusqu’à quatre communes.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231b7a5a'/%3E%3Cpath d='M4 11l2-6 3 3 3-4v7z' fill='%23f2e6b1'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="js/header-search.js"></script>
@@ -28,7 +28,6 @@
           <a href="index.html">Départements</a>
           <a href="communes.html">Communes</a>
           <a href="recherche.html" aria-current="page">Recherche</a>
-          <a href="flux.html">Flux &amp; limites</a>
           <a href="#methode" data-jump>Méthode &amp; limites</a>
         </nav>
         <form class="top-search" id="top-search" data-here role="search" aria-label="Rechercher une commune" action="recherche.html" method="get">
@@ -73,9 +72,9 @@
           <ul>
             <li><strong>Train</strong> : gare la plus proche et trains directs vers les grandes villes ;</li>
             <li><strong>Climat politique</strong>, <strong>culture</strong> à 15&nbsp;km et <strong>prix</strong> des maisons ;</li>
-            <li><strong>Terres et risques</strong> de la commune : densité, artificialisation, catastrophes naturelles, centrale nucléaire la plus proche, sites Seveso ;</li>
-            <li>les indicateurs du <strong>département</strong> (eau, foncier, nature, risques) et sa classe, clairement distingués de ceux de la commune ;</li>
-            <li>le <strong>vent</strong> de la semaine écoulée au point de la commune.</li>
+            <li><strong>Terres</strong> de la commune : densité, artificialisation, centrale nucléaire la plus proche, sites Seveso ;</li>
+            <li><strong>Risques</strong> de la commune : catastrophes naturelles reconnues par aléa (inondations, sécheresse et argiles, vagues, mouvements de terrain), risques recensés, plans de prévention, recul du trait de côte ;</li>
+            <li>les indicateurs du <strong>département</strong> (eau, foncier, nature, risques) et sa classe, clairement distingués de ceux de la commune.</li>
           </ul>
           <p class="muted small">Ajoutez jusqu’à quatre communes à la comparaison pour les lire côte à côte.</p>
         </div>
@@ -106,9 +105,9 @@
       </ul>
       <h3>Ce que contient une fiche</h3>
       <ul>
-        <li><strong>Valeurs de la commune</strong> : train, climat politique, culture, prix, terres et risques (densité, artificialisation sur 5&nbsp;ans, catastrophes naturelles sur 20&nbsp;ans, distance à la centrale nucléaire la plus proche, sites Seveso à proximité). Mêmes données et mêmes limites que la page <a href="communes.html#methode">Communes</a> (trains directs seulement, un scrutin n’est pas une opinion, des comptages de lieux, un prix médian seulement avec au moins 10 ventes).</li>
+        <li><strong>Valeurs de la commune</strong> : train, climat politique, culture, prix, terres (densité, artificialisation sur 5&nbsp;ans, distance à la centrale nucléaire la plus proche, sites Seveso à proximité) et <strong>risques</strong>. Mêmes données et mêmes limites que la page <a href="communes.html#methode">Communes</a> (trains directs seulement, un scrutin n’est pas une opinion, des comptages de lieux, un prix médian seulement avec au moins 10 ventes).</li>
+        <li><strong>Risques de la commune.</strong> Quatre décomptes de reconnaissances de catastrophe naturelle (CatNat) pour des événements des 20 dernières années (inondations, sécheresse — en pratique le retrait-gonflement des argiles —, vagues et submersion, mouvements de terrain) ; les risques recensés par la préfecture dans son dossier départemental (DDRM) ; les plans de prévention opposables ; et l’inscription de la commune sur la liste du recul du trait de côte (décret en vigueur). Sources : GASPAR (Géorisques) et la liste officielle du trait de côte. C’est <strong>une connaissance réglementaire du risque, pas une mesure de son intensité</strong>, et l’absence d’un risque dans la base n’en prouve pas l’absence. Quelques départements entiers sont absents de la base GASPAR : leurs communes affichent « non renseigné », ce qui ne veut pas dire « aucun risque ».</li>
         <li><strong>Valeurs du département</strong> : celles de la carte comparative, pas celles de la commune. « Mieux que X&nbsp;% des départements » est le score percentile de l’<a href="index.html#methode">indice composite</a> ; la classe et le rang suivent les pondérations par défaut, relatifs et sans jugement absolu.</li>
-        <li><strong>Vent</strong> : lecture du champ de la page <a href="flux.html#methode">Flux &amp; limites</a> au point de la commune, sur la semaine disponible. Seuls les nœuds d’une maille d’environ 50&nbsp;km sont des données réelles : plus la donnée réelle la plus proche est loin, plus la valeur est interpolée. Le relief local (vallée, col) n’y est pas.</li>
       </ul>
       <p id="generated" class="muted"></p>
     </div>

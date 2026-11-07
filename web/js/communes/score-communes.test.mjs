@@ -90,4 +90,48 @@ assert.ok(s.byCode.get('Q1').score > s.byCode.get('Q3').score && s.byCode.get('Q
 const sum = s.parts('Q1').reduce((acc, p) => acc + p.points, 0);
 assert.ok(Math.abs(sum - s.byCode.get('Q1').score) < 1e-9, 'la somme des contributions est le score');
 
+// risques CatNat par aléa : quatre critères, 0 est une vraie valeur, le total n'est plus un critère
+const byId = (id) => CRITERIA.find((k) => k.id === id);
+assert.deepEqual(['cin', 'cse', 'cme', 'cmt'].map((id) => byId(id).w), [1, 1, 1, 0.5]);
+assert.deepEqual(['cin', 'cse', 'cme', 'cmt'].map((id) => byId(id).col), ['catnat_inond', 'catnat_sech', 'catnat_mer', 'catnat_mvt']);
+const r1 = res(com('R1', '01', { catnat_inond: 0, catnat_sech: 0, catnat_mer: 0, catnat_mvt: 0, catnat: 0 }));
+const r2 = res(com('R2', '01', { catnat_inond: 5, catnat_sech: 0, catnat_mer: 0, catnat_mvt: 0, catnat: 5 }));
+const r3 = res(com('R3', '01', { catnat_inond: 1, catnat_sech: 9, catnat_mer: 0, catnat_mvt: 2, catnat: 12 }));
+const renv = envFor([r1.c, r2.c, r3.c]);
+assert.equal(levelOf(byId('cin'), renv), 'commune');
+assert.equal(levelOf(byId('cat'), renv), null, 'le total est un repli, pas un critère, quand le détail existe');
+s = scoreCommunes([r1, r2, r3], withW({ cin: 1 }), renv);
+assert.deepEqual([s.byCode.get('R1').rank, s.byCode.get('R3').rank, s.byCode.get('R2').rank], [1, 2, 3]);
+s = scoreCommunes([r1, r2, r3], withW({ cin: 1, cse: 1, cme: 1, cmt: 0.5 }), renv);
+assert.equal(s.active.length, 4);
+assert.equal(s.byCode.get('R1').rank, 1);
+// anciennes données (colonnes par aléa absentes) : repli sur le total communal, puis sur le département
+const o1 = res(com('O1', '01', { catnat: 2 }));
+const o2 = res(com('O2', '02', { catnat: null }));
+const oenv = { colAvail: columnsAvailable([o1.c, o2.c]), ind: (id) => (id === 'catnat' ? ind({ '01': 1, '02': 9 }) : inds[id]) };
+assert.equal(levelOf(byId('cin'), oenv), null);
+assert.equal(levelOf(byId('cat'), oenv), 'commune');
+s = scoreCommunes([o1, o2], withW({ cat: 1, cin: 3 }), oenv);
+assert.deepEqual(s.active.map((a) => a.k.id), ['cat']);
+assert.equal(s.parts('O2')[0].x.gran, 'departement'); // O2 n'a pas de total communal : celui de son département
+assert.equal(s.byCode.get('O1').rank, 1);
+const oenv2 = { colAvail: columnsAvailable([com('Z', '01')]), ind: (id) => (id === 'catnat' ? ind({ '01': 1 }) : undefined) };
+assert.equal(levelOf(byId('cat'), oenv2), 'departement');
+
+// lecture par écart (min-max) : les ordres de grandeur comptent ; le même ordre, mais pas les mêmes scores
+const m = [res(com('M1', '01'), { min: 10 }), res(com('M2', '01'), { min: 20 }), res(com('M3', '01'), { min: 30 }), res(com('M4', '01'), { min: 1010 })];
+const menv2 = envFor(m.map((r) => r.c));
+assert.equal(defaultSettings().norm, 'rank');
+const sr = scoreCommunes(m, withW({ tps: 1 }), menv2);
+const sm = scoreCommunes(m, { ...withW({ tps: 1 }), norm: 'minmax' }, menv2);
+assert.ok(Math.abs(sr.byCode.get('M2').score - (200 / 3)) < 1e-9);
+assert.ok(Math.abs(sm.byCode.get('M2').score - 100 * (1 - 10 / 1000)) < 1e-9);
+assert.ok(Math.abs(sm.byCode.get('M4').score) < 1e-9);
+assert.deepEqual([...sm.byCode.keys()].map((k) => sm.byCode.get(k).rank), [1, 2, 3, 4]);
+// la mémoïsation tient compte du mode (même tableau de résultats, autre lecture)
+const memo = {};
+const a1 = scoreCommunes(m, withW({ tps: 1 }), menv2, memo).byCode.get('M2').score;
+const a2 = scoreCommunes(m, { ...withW({ tps: 1 }), norm: 'minmax' }, menv2, memo).byCode.get('M2').score;
+assert.notEqual(a1, a2);
+
 console.log('score-communes : ok');

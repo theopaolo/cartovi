@@ -2,6 +2,8 @@
 import { CLASSES } from '../classes.js';
 import { h } from '../dom.js';
 import { NBSP, fmtNumber, fmtValue, ordinal, pct } from '../format.js';
+import { RISK_CAVEAT, riskReading } from './risks.js';
+import { riskNodes } from './risks-view.js';
 import { fmtCriterion } from './score-communes.js';
 import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from './text.js';
 
@@ -49,6 +51,7 @@ export function createDetail(root, { index, onClose }) {
             ? h('p', {}, h('strong', {}, fmtPrice(c.prix)), h('span', { class: 'muted small' }, ' · médiane DVF sur environ 5 ans'))
             : h('p', { class: 'muted' }, 'Non disponible : moins de 10 ventes de maisons.'),
         ),
+        risks(c),
         department(c, dep, payload),
         h('p', {}, h('a', { href: `recherche.html#c=${encodeURIComponent(c.code)}` }, 'Fiche complète')),
       );
@@ -57,7 +60,7 @@ export function createDetail(root, { index, onClose }) {
 }
 
 /** Score, rang dans la sélection et décomposition critère par critère (valeur, granularité, percentile, poids, contribution). */
-function scoreBlock(result, { sc, n, parts, env }) {
+function scoreBlock(result, { sc, n, parts, env, norm }) {
   const sec = h('section', { class: 'sc-detail' }, h('h3', {}, 'Score personnalisé'));
   if (!result) return (sec.append(h('p', { class: 'muted' }, 'Hors de la sélection : le score ne classe que les communes qui respectent les critères.')), sec);
   if (!sc) return (sec.append(h('p', { class: 'muted' }, 'Pas de score : aucun critère actif ne s’applique à cette commune. Réglez le panneau « Score personnalisé ».')), sec);
@@ -76,7 +79,7 @@ function scoreBlock(result, { sc, n, parts, env }) {
         'table',
         { class: 'rank-table sc-table' },
         h('caption', { class: 'sr-only' }, 'Décomposition du score par critère'),
-        h('thead', {}, h('tr', {}, ['Critère', 'Valeur', 'Mieux que', 'Poids', 'Points'].map((t, i) => h('th', { scope: 'col', class: i ? 'c-val' : null, title: i === 2 ? 'Part des communes retenues que celle-ci devance' : i === 4 ? 'Poids × position ÷ somme des poids, sur 100' : null }, t)))),
+        h('thead', {}, h('tr', {}, ['Critère', 'Valeur', norm === 'minmax' ? 'Position' : 'Mieux que', 'Poids', 'Points'].map((t, i) => h('th', { scope: 'col', class: i ? 'c-val' : null, title: i === 2 ? (norm === 'minmax' ? 'Position entre la valeur la moins et la plus favorable de la sélection (min-max)' : 'Part des communes retenues que celle-ci devance') : i === 4 ? 'Poids × position ÷ somme des poids, sur 100' : null }, t)))),
         h(
           'tbody',
           {},
@@ -96,7 +99,7 @@ function scoreBlock(result, { sc, n, parts, env }) {
         ),
       ),
     ),
-    h('p', { class: 'muted small' }, 'Un score est un angle de lecture sur cette sélection, pas un verdict. « Mieux que X\u00a0% » : part des communes retenues devancées pour ce critère.'),
+    h('p', { class: 'muted small' }, norm === 'minmax' ? 'Un score est un angle de lecture sur cette sélection, pas un verdict. Lecture par écart : « Position » situe la valeur entre la moins et la plus favorable de la sélection.' : 'Un score est un angle de lecture sur cette sélection, pas un verdict. « Mieux que X\u00a0% » : part des communes retenues devancées pour ce critère.'),
   );
   return sec;
 }
@@ -159,6 +162,16 @@ function culture(c) {
     ...row('Musées', fmtNumber(c.musees)),
     ...row('Librairies', fmtNumber(c.librairies)),
     ...row('Conservatoires', fmtNumber(c.conservatoires)),
+  );
+}
+
+function risks(c) {
+  return h(
+    'section',
+    {},
+    h('h3', {}, 'Risques — valeurs de la commune'),
+    ...riskNodes(riskReading(c)),
+    h('p', { class: 'muted small' }, RISK_CAVEAT, ' Sources : GASPAR (Géorisques), liste officielle du trait de côte.'),
   );
 }
 

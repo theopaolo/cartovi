@@ -685,3 +685,32 @@ select:disabled { opacity: 0.6; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* ---------- lecture du score : rang (centiles) ou écart (min-max) ---------- */
+.norm-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.norm-field > span { font-weight: 600; font-size: 0.875rem; }
+.norm-toggle { margin-bottom: 0; }
+.com-score .norm-field { margin: 8px 0 2px; }
+
+/* page Flux : expérimentation hors classement */
+.exp-note { grid-column: 1 / -1; font-size: 0.8125rem; color: var(--muted); max-width: 90ch; }
+.exp-note .badge { margin-left: 0; margin-right: 4px; }
+.flux-link { margin-top: 20px; }
+
+/* page Communes : cases « exclure les communes… » */
+.fsec-fold > summary { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; font-weight: 700; font-size: 0.875rem; cursor: pointer; }
+.fsec-fold[open] > summary { margin-bottom: 6px; }
+.fsec-fold .sum-count { font-weight: 600; }
+.ex-list { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.ex-list .check.off { opacity: 0.55; cursor: default; }
+.ex-list .check span { min-width: 0; }
+.res-table .sub.nr { color: var(--warn); }
+
+/* risques d'une commune (fiche des pages Communes et Recherche) */
+.risk-group { margin-top: 10px; }
+.risk-title { margin-bottom: 4px; font-size: 0.8125rem; font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 0; list-style: none; }
+.chips li { padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); font-size: 0.8125rem; font-weight: 600; }
+.badge.nr-badge { margin-left: 0; }
+.fsec-fold .fsec-title { flex: 1; min-width: 0; }
+.fsec-fold .sum-count { margin-left: 0; white-space: nowrap; }

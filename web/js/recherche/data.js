@@ -1,8 +1,6 @@
-// data.js — chargement de la page Recherche : l'index des noms au démarrage, le reste (fiches, vent) à la demande.
+// data.js — chargement de la page Recherche : l'index des noms au démarrage, le reste (fiches) à la demande.
 import { loadData, getJSON } from '../data.js';
 import { createStore, loadIndex } from '../communes/data.js';
-import { loadFlux } from '../flux/data.js';
-import { createMaille } from '../flux/maille.js';
 import { indicatorScores } from '../score.js';
 import { computeViews } from '../view.js';
 import { buildIndex, norm } from './search.js';
@@ -32,16 +30,4 @@ export async function loadContext() {
     view = computeViews({ indicators: payload.indicators, scores, weights, mode: 'composite', codes }).comp;
   }
   return { territories, depByName, payload, scores, view, index, store: index ? createStore(index) : null };
-}
-
-// ---------- vent ----------
-let fluxPromise = null;
-
-/** vent.json, chargé une fois, à la première fiche. Rejette si absent ou invalide (la fiche l'indique). */
-export function loadWind() {
-  fluxPromise ||= loadFlux().then((flux) => ({
-    flux,
-    maille: createMaille(flux.nodes, { W: flux.W, H: flux.H, kmPerUnit: flux.kmPerUnit }),
-  }));
-  return fluxPromise;
 }

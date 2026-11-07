@@ -6,6 +6,8 @@
 // ensemble le temps maximal, le nombre minimal de trains et la distance maximale à la gare ;
 // on retient alors la plus rapide (à durée égale, la plus fréquente).
 
+import { activeRules, checkRisks } from './risks.js';
+
 // Crans des curseurs « à paliers » (population, trains, culture, prix…). Infinity = pas de limite.
 export const STOPS = {
   popMin: [0, 100, 200, 500, 1000, 1500, 2000, 5000, 10000, 20000, 50000, 100000],
@@ -42,6 +44,7 @@ export const DEFAULTS = {
   label: false,
   priceMax: Infinity,
   priceUnknown: true, // garder les communes sans prix connu (moins de 10 ventes) quand un plafond est fixé
+  ex: [], // cases « exclure les communes… » cochées (risks.js, EXCLUSIONS), dans l'ordre canonique ; aucune par défaut
 };
 
 export const DEFAULT_SORT = { key: 'score', dir: -1 }; // meilleur score d'abord
@@ -53,11 +56,13 @@ export const DEFAULT_SORT = { key: 'score', dir: -1 }; // meilleur score d'abord
  * @param {number} hubIdx  indice de la ville de référence dans index.json, ou -1 pour n'importe laquelle
  * @param {{x:number,y:number}|null} hub  centre de la ville de référence choisie (null si hubIdx = -1)
  * @param {number} kmPerUnit  kilomètres par unité du viewBox
- * @returns {{c:object, hub:number, min:number, trains:number, km:number, left:number|null}[]}
+ * @returns {{c:object, hub:number, min:number, trains:number, km:number, left:number|null, nr:boolean}[]}  nr : une case de risque cochée n'a pu être vérifiée (risques non renseignés)
  */
 export function applyFilters(communes, crit, hubIdx, hub, kmPerUnit) {
   const { maxMin, popMin, popMax, leftBasis, leftMin, distMin, trainsMin, kmMax, cinemasMin, scenesMin, label, priceMax, priceUnknown } = crit;
   const key = leftBasis === 'zone' ? 'gauche_10km' : 'gauche_commune';
+  const risk = activeRules(crit.ex || []);
+  const checkRisk = risk.rules.length || risk.dropUnknown;
   const out = [];
   for (const c of communes) {
     // critères propres à la commune d'abord (peu coûteux), trajet ensuite
@@ -67,6 +72,9 @@ export function applyFilters(communes, crit, hubIdx, hub, kmPerUnit) {
     if (c.cinemas < cinemasMin || c.scenes < scenesMin) continue;
     if (label && !(c.labels > 0)) continue;
     if (priceMax < Infinity && (c.prix == null ? !priceUnknown : c.prix > priceMax)) continue;
+    // risques : une case cochée écarte la commune qui porte le risque ; données absentes (null) : gardée, sauf case « non renseignées »
+    const rk = checkRisk ? checkRisks(c, risk) : { nr: false };
+    if (!rk) continue;
     // à distance minimale du centre : de la ville choisie, ou de toutes les villes de référence en mode « n'importe laquelle »
     if (distMin > 0 && (hub ? Math.hypot(c.x - hub.x, c.y - hub.y) * kmPerUnit : c.dmin) < distMin) continue;
 
@@ -86,7 +94,7 @@ export function applyFilters(communes, crit, hubIdx, hub, kmPerUnit) {
         km = r[i + 3];
       }
     }
-    if (best >= 0) out.push({ c, hub: best, min, trains, km, left: left ?? null });
+    if (best >= 0) out.push({ c, hub: best, min, trains, km, left: left ?? null, nr: rk.nr });
   }
   return out;
 }

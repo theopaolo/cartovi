@@ -19,15 +19,15 @@ export function createDetail(root, { onClose }) {
     hide: () => {
       root.hidden = true;
     },
-    /** ctx : { terr, comp (vue composite), data, scores, weights, activeId } */
-    show({ terr, comp, data, scores, weights, activeId }) {
+    /** ctx : { terr, comp (vue composite), data, scores, weights, activeId, norm (mode de lecture) } */
+    show({ terr, comp, data, scores, weights, activeId, norm }) {
       root.hidden = false;
       title.textContent = `${terr.name} (${terr.code})`;
       sub.textContent = `${terr.region} · ${fmtNumber(terr.area_km2, 0)}${NBSP}km²`;
       const e = comp.byCode[terr.code];
       body.replaceChildren(
         summary(comp, e),
-        ...(data ? data.themes.map((t) => themeBlock(t, terr.code, data, scores, weights, activeId)) : []),
+        ...(data ? data.themes.map((t) => themeBlock(t, terr.code, data, scores, weights, activeId, norm)) : []),
       );
     },
   };
@@ -53,7 +53,7 @@ function summary(comp, e) {
   );
 }
 
-function themeBlock(theme, code, data, scores, weights, activeId) {
+function themeBlock(theme, code, data, scores, weights, activeId, norm) {
   const inds = data.indicators.filter((i) => i.theme === theme.id);
   const w = Object.fromEntries(inds.map((i) => [i.id, weights[i.id]]));
   const sub = composite(scores, w, [code])[code];
@@ -61,11 +61,11 @@ function themeBlock(theme, code, data, scores, weights, activeId) {
     'section',
     { class: 'theme-block' },
     h('h3', {}, theme.label, h('span', { class: 'theme-score' }, sub ? `${fmtNumber(sub.score * 100, 0)}${NBSP}/${NBSP}100` : 'ignoré')),
-    h('ul', { class: 'ind-list' }, inds.map((i) => indicatorRow(i, code, scores, weights, activeId))),
+    h('ul', { class: 'ind-list' }, inds.map((i) => indicatorRow(i, code, scores, weights, activeId, norm))),
   );
 }
 
-function indicatorRow(ind, code, scores, weights, activeId) {
+function indicatorRow(ind, code, scores, weights, activeId, norm) {
   const v = ind.values[code];
   const sc = scores[ind.id]?.[code];
   const missing = !Number.isFinite(v) || sc === undefined;
@@ -85,7 +85,7 @@ function indicatorRow(ind, code, scores, weights, activeId) {
     h(
       'p',
       { class: 'ind-meta' },
-      missing ? 'Pas de valeur pour ce département' : `mieux que ${pct(sc)}${NBSP}% des départements`,
+      missing ? 'Pas de valeur pour ce département' : norm === 'minmax' ? `à ${pct(sc)}${NBSP}% de l’écart entre le moins et le plus favorable` : `mieux que ${pct(sc)}${NBSP}% des départements`,
       ' · ',
       ind.period || 'période inconnue',
       ' · ',

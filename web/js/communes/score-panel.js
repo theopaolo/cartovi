@@ -1,7 +1,8 @@
 // score-panel.js — panneau « Score personnalisé » : un poids (0–3) par critère, un sens quand il n'est pas évident.
-// Chaque contrôle appelle onChange({id, w}) ou onChange({id, o}) ; sync(settings) réaligne l'ensemble.
+// Chaque contrôle appelle onChange({id, w}), onChange({id, o}) ou onChange({norm}) ; sync(settings) réaligne l'ensemble.
 import { h } from '../dom.js';
 import { NBSP, fmtNumber } from '../format.js';
+import { createNormToggle } from '../norm-toggle.js';
 import { CRITERIA, GROUPS, W_MAX, W_STEP } from './score-communes.js';
 
 const LEVEL_TEXT = { commune: 'commune', departement: 'département', repli: 'département (repli)' };
@@ -30,26 +31,31 @@ export function createScorePanel(root, { onChange, onReset }) {
         )
       : null;
     const el = h('div', { class: 'wrow sc-row' }, h('label', { for: id, class: 'wlabel' }, k.label, badge), out, pills, input, hint);
-    rows.set(k.id, { k, input, out, badge, hint, pills });
+    rows.set(k.id, { k, el, input, out, badge, hint, pills });
     return el;
   };
 
   const flash = h('span', { class: 'flash', role: 'status' });
+  const norm = createNormToggle((n) => onChange({ norm: n }));
   root.replaceChildren(
     h(
       'p',
       { class: 'muted small' },
       'Classe de 0 à 100 les communes retenues ci-dessus, selon ce qui compte pour vous : le score est relatif à cette sélection, pas à la France. Poids 0 : critère ignoré.',
     ),
+    h('div', { class: 'norm-field' }, h('span', { class: 'wlabel' }, 'Lecture'), norm.el),
+    h('p', { class: 'wnote' }, 'Par rang : seul l’ordre des communes compte. Par écart : la distance réelle entre valeurs compte, mais une valeur extrême écrase les autres (voir « Méthode »).'),
     h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn', onclick: onReset }, 'Réinitialiser'), flash),
     ...GROUPS.map((g) => h('fieldset', { class: 'fsec' }, h('legend', {}, g.label), CRITERIA.filter((k) => k.group === g.id).map(makeRow))),
   );
 
   function paint() {
     if (!settings) return;
-    for (const { k, input, out, badge, hint, pills } of rows.values()) {
+    norm.set(settings.norm);
+    for (const { k, el, input, out, badge, hint, pills } of rows.values()) {
       const w = settings.w[k.id];
       const level = levels[k.id] ?? null;
+      el.hidden = !!k.legacy && !level; // repli sur d'anciennes données : masqué tant que le détail par aléa existe
       const needsDir = !!k.choice && !settings.o[k.id];
       if (document.activeElement !== input) input.value = w;
       input.disabled = !level || needsDir;

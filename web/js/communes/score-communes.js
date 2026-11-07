@@ -4,8 +4,9 @@
 //  1. le score ne classe que les communes qui passent les filtres : les percentiles sont relatifs à la sélection ;
 //  2. les critères sans « bon sens » universel (taille, climat politique) sont à 0 par défaut, le sens est choisi par l'utilisateur ;
 //  3. granularité la plus fine : valeur de la commune si elle existe, sinon celle du département quand l'unité est la même.
-// Les calculs eux-mêmes (percentiles, indice composite, rangs) sont ceux de la carte des départements (score.js).
-import { composite, percentileScores, rank } from '../score.js';
+//  4. la lecture (settings.norm) est celle de la carte des départements : par rang (centiles, défaut) ou par écart (min-max).
+// Les calculs eux-mêmes (scores, indice composite, rangs) sont ceux de la carte des départements (score.js).
+import { DEFAULT_NORM, composite, rank, scorerOf } from '../score.js';
 import { NBSP, fmtNumber, fmtValue } from '../format.js';
 import { fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from './text.js';
 
@@ -23,6 +24,8 @@ export const GROUPS = [
   { id: 'eau', label: 'Eau et climat' },
 ];
 
+const fmtRecognitions = (v) => `${fmtNumber(v)}${NBSP}reconnaissance${v > 1 ? 's' : ''}`;
+
 const MOINS_PLUS = [
   { id: 'moins', label: 'moins cher', dir: -1 },
   { id: 'plus', label: 'plus cher', dir: 1 },
@@ -36,6 +39,7 @@ const MOINS_PLUS = [
  *  fallback : 'cell' (une commune sans valeur prend celle de son département, même unité)
  *             'column' (repli sur le département seulement si TOUTE la colonne manque : unités différentes)
  *  cap : plafond de la valeur utilisée pour classer
+ *  legacy : colonnes plus fines qui, dès que l'une est présente, rendent ce critère inutile (il ne sert que de repli sur d'anciennes données)
  *  repliDir : sens du repli départemental quand il diffère (distance en km : plus loin = mieux ; part du territoire en zone PPI : moins = mieux)
  */
 export const CRITERIA = [
@@ -71,7 +75,13 @@ export const CRITERIA = [
   },
   { id: 'den', group: 'terres', label: 'Densité de population', w: 1, dir: -1, col: 'densite', dep: 'densite', fallback: 'cell', fmt: (v) => `${fmtNumber(v)}${NBSP}hab./km²` },
   { id: 'art', group: 'terres', label: 'Artificialisation récente', w: 1, dir: -1, col: 'artif', dep: 'conso_naf', fallback: 'cell', fmt: (v) => `${fmtNumber(v, 1)}${NBSP}ha/an pour 100${NBSP}km²` },
-  { id: 'cat', group: 'risques', label: 'Catastrophes naturelles', w: 1, dir: -1, col: 'catnat', dep: 'catnat', fallback: 'cell', fmt: (v) => `${fmtNumber(v)}${NBSP}arrêté${v > 1 ? 's' : ''}` },
+  // CatNat par aléa (20 ans) : valeur de la commune seulement, 0 est une vraie valeur (aucune reconnaissance)
+  { id: 'cin', group: 'risques', label: 'Inondations reconnues (20 ans)', w: 1, dir: -1, col: 'catnat_inond', fmt: fmtRecognitions },
+  { id: 'cse', group: 'risques', label: 'Sécheresse et argiles reconnues (20 ans)', w: 1, dir: -1, col: 'catnat_sech', fmt: fmtRecognitions },
+  { id: 'cme', group: 'risques', label: 'Vagues et submersion reconnues (20 ans)', w: 1, dir: -1, col: 'catnat_mer', fmt: fmtRecognitions },
+  { id: 'cmt', group: 'risques', label: 'Mouvements de terrain reconnus (20 ans)', w: 0.5, dir: -1, col: 'catnat_mvt', fmt: fmtRecognitions },
+  // anciennes données (sans le détail par aléa) : total communal, puis total du département
+  { id: 'cat', group: 'risques', label: 'Catastrophes naturelles (total)', w: 1, dir: -1, col: 'catnat', dep: 'catnat', fallback: 'cell', legacy: ['catnat_inond', 'catnat_sech', 'catnat_mer', 'catnat_mvt'], fmt: (v) => `${fmtNumber(v)}${NBSP}arrêté${v > 1 ? 's' : ''}` },
   { id: 'nuc', group: 'risques', label: 'Distance à une centrale nucléaire', w: 1, dir: 1, col: 'nucleaire_km', dep: 'nucleaire_ppi', fallback: 'column', repliDir: -1, cap: NUC_CAP_KM, fmt: (v) => (v >= NUC_CAP_KM ? `${NUC_CAP_KM}${NBSP}km ou plus` : fmtKm(v)) },
   { id: 'sev', group: 'risques', label: 'Sites Seveso proches', w: 1, dir: -1, col: 'seveso_10km', dep: 'seveso', fallback: 'column', fmt: (v) => `${fmtNumber(v)}${NBSP}site${v > 1 ? 's' : ''}` },
   { id: 'sol', group: 'risques', label: 'Sols pollués', w: 0.5, dir: -1, dep: 'sols_pollues' },
@@ -91,6 +101,7 @@ export function defaultSettings() {
   return {
     w: Object.fromEntries(CRITERIA.map((k) => [k.id, k.w])),
     o: Object.fromEntries(CRITERIA.filter((k) => k.choice).map((k) => [k.id, k.choiceDefault])),
+    norm: DEFAULT_NORM,
   };
 }
 
@@ -118,6 +129,7 @@ export function columnsAvailable(communes) {
  * @param {{colAvail:Object<string,boolean>, ind:(id:string)=>object|undefined}} env  ind : indicateur départemental par id
  */
 export function levelOf(k, env) {
+  if (k.legacy?.some((col) => env.colAvail[col])) return null; // le détail par aléa existe : le total n'est plus un critère
   const hasDep = !!(k.dep && env.ind(k.dep));
   if (k.get) return 'commune';
   if (!k.col) return hasDep ? 'departement' : null;
@@ -156,9 +168,9 @@ export function fmtCriterion(k, x, env) {
 /**
  * Score des communes retenues.
  * @param {{c:object, min:number, trains:number, left:number|null}[]} results  sortie de applyFilters
- * @param {{w:Object<string,number>, o:Object<string,string|null>}} settings
+ * @param {{w:Object<string,number>, o:Object<string,string|null>, norm?:string}} settings
  * @param {{colAvail:Object<string,boolean>, ind:(id:string)=>object|undefined}} env
- * @param {object} [memo]  mémo conservé tant que `results` est le même tableau : les curseurs de poids ne recalculent pas les percentiles
+ * @param {object} [memo]  mémo conservé tant que `results` est le même tableau : les curseurs de poids ne recalculent pas les scores
  * @returns {{n:number, active:object[], byCode:Map<string,{score:number,rank:number,cls:number,used:number,wsum:number}>,
  *            parts:(code:string)=>object[]}}  score dans [0, 100] ; n = communes classées
  */
@@ -172,8 +184,10 @@ export function scoreCommunes(results, settings, env, memo = {}) {
   }
   const scores = {};
   const weights = {};
+  const norm = settings.norm || DEFAULT_NORM;
+  const scorer = scorerOf(norm);
   for (const a of active) {
-    const key = `${a.k.id}|${a.dir}|${a.level}`;
+    const key = `${a.k.id}|${a.dir}|${a.level}|${norm}`;
     let sc = memo.cache.get(key);
     if (!sc) {
       const values = {};
@@ -181,7 +195,7 @@ export function scoreCommunes(results, settings, env, memo = {}) {
         const x = resolve(a.k, r, env, a.level);
         if (x) values[r.c.code] = x.v;
       }
-      sc = percentileScores(values, a.dir);
+      sc = scorer(values, a.dir);
       memo.cache.set(key, sc);
     }
     scores[a.k.id] = sc;

@@ -4,7 +4,7 @@ import { h } from '../dom.js';
 import { NBSP } from '../format.js';
 import { identityLine } from './profile.js';
 
-const SCOPE_LABEL = { commune: 'valeurs de la commune', departement: 'valeurs du département', point: 'lecture au point de la commune' };
+const SCOPE_LABEL = { commune: 'valeurs de la commune', departement: 'valeurs du département' };
 
 /** Cellule : valeur + précision, ou tiret. */
 function cell(r, placeholder = '—') {
@@ -52,8 +52,8 @@ export function renderCompare(root, profiles, { onRemove, onOpen }) {
   const add = (label, cells, cls) => rowsOf.push(h('tr', { class: cls }, h('th', { scope: 'row' }, label), cells));
   const sub = (label) => rowsOf.push(h('tr', { class: 'cmp-sub' }, h('th', { scope: 'rowgroup', colspan: n + 1 }, h('span', {}, label))));
 
-  // sections de la commune et du vent : lignes alignées par identifiant
-  for (const id of ['train', 'politique', 'culture', 'prix', 'terres', 'departement', 'vent']) {
+  // sections de la commune : lignes alignées par identifiant
+  for (const id of ['train', 'politique', 'culture', 'prix', 'terres', 'risques', 'departement']) {
     const secs = profiles.map((p) => secOf(p, id));
     const ref = secs.find(Boolean);
     if (!ref) continue;

@@ -1,5 +1,7 @@
 // hash.js — état partageable dans le fragment d'URL :
-//   #d=69&m=densite&w=eau_x:2,prix:0   (département, mode/indicateur, poids différents du défaut)
+//   #d=69&m=densite&n=minmax&w=eau_x:2,prix:0   (département, mode/indicateur, lecture par écart, poids différents du défaut)
+import { DEFAULT_NORM } from './score.js';
+
 export function parseHash(hash = location.hash) {
   const out = {};
   for (const part of hash.replace(/^#/, '').split('&')) {
@@ -7,6 +9,7 @@ export function parseHash(hash = location.hash) {
     try {
       if (k === 'd') out.selected = decodeURIComponent(v);
       else if (k === 'm') out.mode = decodeURIComponent(v);
+      else if (k === 'n') out.norm = decodeURIComponent(v);
       else if (k === 'w') {
         out.weights = {};
         for (const pair of v.split(',')) {
@@ -26,6 +29,7 @@ export function hashFor(state, defaults) {
   const parts = [];
   if (state.selected) parts.push(`d=${encodeURIComponent(state.selected)}`);
   if (state.mode !== 'composite') parts.push(`m=${encodeURIComponent(state.mode)}`);
+  if (state.norm && state.norm !== DEFAULT_NORM) parts.push(`n=${encodeURIComponent(state.norm)}`);
   const diff = Object.keys(state.weights)
     .filter((id) => state.weights[id] !== defaults[id])
     .map((id) => `${encodeURIComponent(id)}:${state.weights[id]}`);

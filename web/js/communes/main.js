@@ -6,6 +6,7 @@ import { prefersReducedMotion, rafThrottle } from '../dom.js';
 import { fmtDateTime, fmtNumber, rankText } from '../format.js';
 import { createControls } from './controls.js';
 import { createStore, defaultHub, loadIndex } from './data.js';
+import { exclusionAvailability } from './risks.js';
 import { createDetail } from './detail.js';
 import { DEFAULTS, DEFAULT_SORT, applyFilters, fixPopulation, medianLeft, sortResults } from './filter.js';
 import { hashFor, parseHash, writeHash } from './hash.js';
@@ -101,7 +102,7 @@ function applyHash() {
   Object.assign(state, hs);
   ui.controls.sync(state.crit);
   ui.score.sync(state.score);
-  if (/[&#](w|o)=/.test(location.hash)) $('#score-panel').open = true; // réglages de score dans le lien : on les montre
+  if (/[&#](w|o|n)=/.test(location.hash)) $('#score-panel').open = true; // réglages de score dans le lien : on les montre
   update();
 }
 
@@ -162,6 +163,7 @@ function render() {
   if (listChanged) {
     env.colAvail = columnsAvailable(communes);
     ui.score.setLevels(Object.fromEntries(CRITERIA.map((k) => [k.id, levelOf(k, env)])));
+    ui.controls.setExclusionAvailability(exclusionAvailability(communes));
   }
 
   const hubIdx = hubIdxOf();
@@ -240,7 +242,7 @@ function renderSelection() {
   const sig = `${shown.code}|${r ? `${r.hub}.${r.min}.${r.trains}` : '-'}|${hubIdxOf()}|${state.crit.leftBasis}|${filterVer}|${JSON.stringify(state.score)}`;
   if (sig === shownDetail) return; // inchangée : on ne reconstruit pas la fiche (elle garde son défilement)
   shownDetail = sig;
-  ui.detail.show({ c: shown, result: r, hubIdx: hubIdxOf(), dep: deps.get(shown.dep), payload, basis: state.crit.leftBasis, score: { sc: r?.sc ?? null, n: scoring.n, parts: r ? scoring.parts(shown.code) : [], env } });
+  ui.detail.show({ c: shown, result: r, hubIdx: hubIdxOf(), dep: deps.get(shown.dep), payload, basis: state.crit.leftBasis, score: { sc: r?.sc ?? null, n: scoring.n, parts: r ? scoring.parts(shown.code) : [], env, norm: state.score.norm } });
 }
 
 function select(code, how) {
@@ -283,7 +285,8 @@ function onChange(patch) {
   persist(false);
 }
 
-function onScore({ id, w, o }) {
+function onScore({ id, w, o, norm }) {
+  if (norm !== undefined) state.score.norm = norm;
   if (w !== undefined) state.score.w[id] = w;
   if (o !== undefined) {
     state.score.o[id] = o;

@@ -3,6 +3,7 @@ import { h } from '../dom.js';
 import { NBSP, fmtNumber } from '../format.js';
 import { fold } from './data.js';
 import { SIZES, STOPS } from './filter.js';
+import { EXCLUSIONS, EXCLUSION_IDS, UNKNOWN_ID } from './risks.js';
 import { fmtDay, fmtDuration, fmtPct, plural } from './text.js';
 
 const num = (n) => fmtNumber(n);
@@ -176,6 +177,40 @@ export function createControls(root, { index, onChange, onReset, onCopy }) {
     unknown.input.checked = crit.priceUnknown;
   });
 
+  // ---------- risques : cases « exclure les communes… » (section repliable) ----------
+  const exBoxes = new Map(); // id → { input, el }
+  let ownEx = '';
+  const emitEx = () => {
+    const ex = EXCLUSION_IDS.filter((id) => exBoxes.get(id).input.checked);
+    ownEx = ex.join(',');
+    onChange({ ex });
+  };
+  const exCheck = (id, label, title) => {
+    const input = h('input', { type: 'checkbox', id: `x-${id}`, onchange: emitEx });
+    const el = h('label', { class: 'check', for: `x-${id}`, title }, input, h('span', {}, label));
+    exBoxes.set(id, { input, el, title: title || '' });
+    return el;
+  };
+  const exCount = h('span', { class: 'sum-count' });
+  const exList = [
+    ...EXCLUSIONS.map((e) => exCheck(e.id, e.label.replace('{R}', R.seveso))),
+    exCheck(UNKNOWN_ID, 'exclure aussi les communes non renseignées', 'Communes absentes de la base GASPAR : leurs risques recensés et plans de prévention sont inconnus (pas « aucun risque »).'),
+  ];
+  const exFold = h(
+    'details',
+    { class: 'fsec fsec-fold' },
+    h('summary', {}, h('span', { class: 'fsec-title' }, 'Risques : exclure les communes…'), exCount),
+    h('p', { class: 'wnote' }, 'Ces cases excluent (pas de compensation : un seul risque suffit à écarter une commune). Le score, lui, pondère (compensation : un point fort peut en rattraper un faible).'),
+    h('div', { class: 'ex-list' }, exList),
+    h('p', { class: 'wnote' }, 'Risques recensés et plans de prévention : base GASPAR, une connaissance réglementaire du risque, pas une mesure de son intensité. Une commune absente de la base reste affichée, marquée « non renseigné », sauf si la dernière case est cochée.'),
+  );
+  setters.push((crit) => {
+    for (const [id, b] of exBoxes) b.input.checked = crit.ex.includes(id);
+    exCount.textContent = crit.ex.length ? `${crit.ex.length} coché${crit.ex.length > 1 ? 'es' : 'e'}` : '';
+    if (crit.ex.length && crit.ex.join(',') !== ownEx) exFold.open = true; // coches venues du lien : on les montre
+    ownEx = crit.ex.join(',');
+  });
+
   // ---------- assemblage ----------
   const flashEl = h('span', { class: 'flash', role: 'status' });
   const resetBtn = h('button', { type: 'button', class: 'btn', onclick: onReset }, 'Réinitialiser');
@@ -207,6 +242,7 @@ export function createControls(root, { index, onChange, onReset, onCopy }) {
     ),
     fieldset(`Culture à moins de ${R.culture}${NBSP}km`, sCine.el, sScene.el, label.el),
     fieldset('Prix', sPrice.el, unknown.el),
+    exFold,
   );
 
   return {
@@ -222,6 +258,15 @@ export function createControls(root, { index, onChange, onReset, onCopy }) {
     /** Repère sous le curseur : moyenne nationale et médiane des communes affichées, sur la base choisie. */
     setMedian(v) {
       sLeft.note.textContent = `Listes de gauche aux européennes 2024 : ${fmtPct(NATIONAL_LEFT)} des exprimés en France.${v == null ? '' : ` Médiane des communes affichées : ${fmtPct(v)}.`}`;
+    },
+    /** avail : { idCase: bool } (risks.js, exclusionAvailability) ; une case sans donnée est désactivée. */
+    setExclusionAvailability(avail) {
+      for (const [id, b] of exBoxes) {
+        const ok = avail[id] !== false;
+        b.input.disabled = !ok;
+        b.el.classList.toggle('off', !ok);
+        b.el.title = ok ? b.title : `${b.title} (données indisponibles)`.trim();
+      }
     },
     flash(text) {
       flashEl.textContent = text;

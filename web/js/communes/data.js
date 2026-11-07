@@ -1,5 +1,6 @@
 // data.js — couche communale : index.json au démarrage, puis un fichier par région chargé à la demande.
 import { getJSON } from '../data.js';
+import { normalizeRisks } from './risks.js';
 
 const DIR = 'data/communes/';
 const SAFE_FILE = /^[\w.-]+\.json$/;
@@ -69,6 +70,7 @@ function toCommune(row, cols, hubs, scale) {
   c.pop = Number(c.pop) || 0;
   for (const k of ['cinemas', 'scenes', 'labels', 'musees', 'librairies', 'conservatoires']) c[k] = Number(c[k]) || 0;
   c.cult = c.cinemas + c.scenes + c.labels;
+  normalizeRisks(c); // risques et plans GASPAR : liste, ou null = non renseigné
   // villes {hub: [minutes, trains/j, km]} → tableau plat [hub, minutes, trains, km, …] : on le parcourt à chaque filtrage
   c.reach = [];
   for (const [k, v] of Object.entries(c.villes || {})) if (Array.isArray(v)) c.reach.push(Number(k), v[0], v[1], v[2]);

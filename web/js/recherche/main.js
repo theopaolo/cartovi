@@ -1,16 +1,15 @@
 // main.js — page « Recherche » : relie le champ, les filtres, la liste, la fiche et la comparaison à l'URL.
 // Flux : un changement d'état (requête, filtre, commune ouverte, comparaison) planifie render() ; l'état s'écrit dans le fragment.
-// Les régions et le vent ne se chargent que pour les communes ouvertes ou comparées.
+// Les régions ne se chargent que pour les communes ouvertes ou comparées.
 import { h, prefersReducedMotion, rafThrottle } from '../dom.js';
 import { fmtDateTime, fmtNumber } from '../format.js';
 import { renderCompare } from './compare.js';
-import { loadContext, loadNames, loadWind } from './data.js';
+import { loadContext, loadNames } from './data.js';
 import { createFiche } from './fiche.js';
 import { MAX_COMPARE, hashFor, parseHash, writeHash } from './hash.js';
 import { buildProfile } from './profile.js';
 import { createResults } from './results.js';
 import { SIZE_CHOICES, search } from './search.js';
-import { windStats } from './vent.js';
 
 const $ = (sel) => document.querySelector(sel);
 const narrow = () => matchMedia('(max-width: 959px)').matches; // mise en page empilée
@@ -21,10 +20,8 @@ const state = { q: '', c: null, cmp: [], region: '', sizes: [] };
 const ui = {};
 let names; // index de recherche (noms.json)
 let ctx; // départements, indicateurs, couche communale (facultatifs)
-let wind = null; // vent chargé : {flux, maille} | 'error' | null (en cours)
 const failed = new Set(); // régions dont le chargement a échoué
 const pending = new Set(); // régions en cours de chargement
-const windMemo = new Map(); // code → statistiques de vent
 
 init();
 
@@ -227,30 +224,11 @@ function ensure(code) {
         scheduleRender();
       });
   }
-  if (!wind && !ensure.windStarted) {
-    ensure.windStarted = true;
-    loadWind()
-      .then((w) => (wind = w))
-      .catch((e) => {
-        wind = 'error';
-        console.info(e.message);
-      })
-      .finally(scheduleRender);
-  }
-}
-
-function windFor(code) {
-  if (wind === 'error') return 'error';
-  const c = ctx.store?.commune(code);
-  if (!c) return failed.has(regionOf(code)) ? 'error' : null;
-  if (!wind) return null;
-  if (!windMemo.has(code)) windMemo.set(code, windStats(wind, c.x, c.y));
-  return windMemo.get(code);
 }
 
 const profileOf = (code) => {
   const region = regionOf(code);
-  return buildProfile(ctx, names.rows[names.byCode.get(code)], { wind: windFor(code), regionCode: region, failed: failed.has(region) });
+  return buildProfile(ctx, names.rows[names.byCode.get(code)], { regionCode: region, failed: failed.has(region) });
 };
 
 // ---------- rendu ----------

@@ -5,7 +5,11 @@
 // tr trains/j min · km distance gare max · ci/sc cinémas/scènes min · lb lieu labellisé · px prix max
 // pu 0 = écarter les prix inconnus · s tri (« - » devant = décroissant) · c commune sélectionnée
 // w poids du score ≠ défaut (w=tps:2,pol:1.5) · o sens choisi ≠ défaut (o=prx:plus,pol:gauche) — ids : score-communes.js
+// x cases de risque cochées (x=sub,cote,nr — ids : risks.js, nr = exclure aussi les communes non renseignées)
+// n lecture du score : n=minmax (par écart) ; absent = par rang (centiles)
 import { SORTS } from './filter.js';
+import { EXCLUSION_IDS } from './risks.js';
+import { DEFAULT_NORM, isNorm } from '../score.js';
 import { CRITERION, W_MAX, W_STEP, defaultSettings } from './score-communes.js';
 
 // clé du fragment → [champ des critères, minimum, maximum]
@@ -68,6 +72,11 @@ export function parseHash(hash, defaults, defaultSort, known) {
           if (val !== '' && Number.isFinite(n)) score.w[id] = Math.round(Math.min(W_MAX, Math.max(0, n)) / W_STEP) * W_STEP;
         } else if (cr.choice?.some((o) => o.id === val)) score.o[id] = val;
       }
+    } else if (k === 'x') {
+      const want = v.split(',');
+      crit.ex = EXCLUSION_IDS.filter((id) => want.includes(id));
+    } else if (k === 'n') {
+      if (isNorm(v)) score.norm = v;
     } else if (k === 'c' && /^[0-9AB]{5}$/.test(v)) selected = v;
   }
   return { crit, sort, selected, score };
@@ -89,6 +98,8 @@ export function hashFor({ crit, sort, selected, score }, defaults, defaultSort) 
   const def = defaultSettings();
   const w = Object.keys(def.w).filter((id) => score.w[id] !== def.w[id]).map((id) => `${id}:${score.w[id]}`);
   const o = Object.keys(def.o).filter((id) => score.o[id] !== def.o[id] && score.o[id]).map((id) => `${id}:${score.o[id]}`);
+  if (crit.ex.length) parts.push(`x=${EXCLUSION_IDS.filter((id) => crit.ex.includes(id)).join(',')}`);
+  if (score.norm !== DEFAULT_NORM) parts.push(`n=${score.norm}`);
   if (w.length) parts.push(`w=${w.join(',')}`);
   if (o.length) parts.push(`o=${o.join(',')}`);
   if (selected) parts.push(`c=${encodeURIComponent(selected)}`);

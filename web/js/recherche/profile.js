@@ -2,19 +2,20 @@
 // Aucun accès au DOM : la fiche et le tableau de comparaison lisent la même structure, donc les mêmes chiffres.
 //
 // Une section = { id, scope, title, state?, rows: [{id, label, text, sub?}], … }. scope : 'commune' (valeurs de la commune),
-// 'departement' (valeurs du département, pas de la commune) ou 'point' (lecture du vent au point de la commune).
+// ou 'departement' (valeurs du département, pas de la commune).
 import { CLASSES } from '../classes.js';
 import { NBSP, fmtDate, fmtNumber, fmtValue, pct, rankText } from '../format.js';
 import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, plural, trainsText } from '../communes/text.js';
-import { NATIONAL_LEFT, SOURCES, fmtDistance, fmtMoment, fmtWeek, kmh, mps, trainNote } from './text.js';
-import { windPhrase } from './vent.js';
+import { CATNAT_KINDS, RISK_CAVEAT, riskLabel, riskReading } from '../communes/risks.js';
+import { traitText } from '../communes/risks-view.js';
+import { NATIONAL_LEFT, SOURCES, trainNote } from './text.js';
 
 /**
  * @param {object} ctx  { territories, payload, scores, view, index, store } (data.js loadContext)
  * @param {[string,string,number]} row  ligne de noms.json
- * @param {{wind: object|null|'error', regionCode: string, failed?: boolean}} extra  wind : statistiques de vent (null = en chargement, 'error' = indisponible)
+ * @param {{regionCode: string, failed?: boolean}} extra
  */
-export function buildProfile(ctx, row, { wind, regionCode, failed = false }) {
+export function buildProfile(ctx, row, { regionCode, failed = false }) {
   const [code, nom, pop] = row;
   const dep = code.slice(0, 2);
   const terr = ctx.territories.get(dep);
@@ -32,7 +33,6 @@ export function buildProfile(ctx, row, { wind, regionCode, failed = false }) {
     sections: [
       ...communeSections(ctx, c, failed),
       departmentSection(ctx, dep, terr),
-      windSection(wind),
     ],
   };
 }
@@ -47,6 +47,7 @@ function communeSections(ctx, c, failed) {
       pending('culture', `Culture à moins de ${R.culture}${NBSP}km`, SOURCES.culture),
       pending('prix', 'Prix des maisons', SOURCES.prix),
       pending('terres', TERRES_TITLE, SOURCES.terres),
+      pending('risques', RISQUES_TITLE, SOURCES.gaspar),
     ];
   }
   // trajets directs vers les villes de référence, triés par durée
@@ -114,10 +115,12 @@ function communeSections(ctx, c, failed) {
       source: { ...SOURCES.prix, period: 'ventes d’environ cinq ans' },
     },
     terres(c, R),
+    risques(c),
   ];
 }
 
 const TERRES_TITLE = 'Terres et risques — valeurs de la commune';
+const RISQUES_TITLE = 'Risques — valeurs de la commune';
 
 /** Les cinq valeurs communales de la couche « terres et risques » ; une colonne vide ou absente des données donne « non disponible ». */
 function terres(c, R) {
@@ -130,12 +133,36 @@ function terres(c, R) {
     rows: [
       { id: 'densite', label: 'Densité de population', ...val(c.densite, (v) => `${fmtNumber(v)}${NBSP}hab./km²`) },
       { id: 'artif', label: 'Artificialisation récente', ...val(c.artif, (v) => `${fmtNumber(v, 1)}${NBSP}ha/an pour 100${NBSP}km²`, 'moyenne sur 5 ans') },
-      { id: 'catnat', label: 'Catastrophes naturelles reconnues', ...val(c.catnat, (v) => plural(v, 'arrêté'), 'sur 20 ans') },
+      // le total n'est donné que sans le détail par aléa (anciennes données) : sinon la section « Risques » le remplace
+      ...(CATNAT_KINDS.some((k) => Number.isFinite(c[k.col])) ? [] : [{ id: 'catnat', label: 'Catastrophes naturelles reconnues', ...val(c.catnat, (v) => plural(v, 'arrêté'), 'sur 20 ans') }]),
       { id: 'nucleaire_km', label: 'Centrale nucléaire la plus proche', ...val(c.nucleaire_km, fmtKm, 'à vol d’oiseau, depuis le centre de la commune') },
       { id: 'seveso_10km', label: `Sites Seveso à moins de ${R.seveso}${NBSP}km`, ...val(c.seveso_10km, (v) => plural(v, 'site')) },
     ],
     note: 'Valeurs de la commune, à ne pas confondre avec celles du département plus bas. Sources : Cerema (artificialisation), GASPAR (catastrophes naturelles), Géorisques (Seveso), ASNR (centrales), INSEE (population et surface).',
     source: { ...SOURCES.terres, period: 'dernières données publiées' },
+  };
+}
+
+/** Risques de la commune : décomptes CatNat par aléa, risques recensés, plans opposables, trait de côte. `reading` sert à la fiche (pastilles), `rows` à la comparaison. */
+function risques(c) {
+  const r = riskReading(c);
+  const list = (l, none) => (l.state === 'list' ? l.items.map(riskLabel).join(' · ') : l.state === 'none' ? none : 'non renseigné');
+  return {
+    id: 'risques',
+    scope: 'commune',
+    title: RISQUES_TITLE,
+    reading: r,
+    rows: [
+      ...r.catnat.map((k, i) => ({ id: CATNAT_KINDS[i].col, label: k.label, text: k.n == null ? 'non disponible' : plural(k.n, 'reconnaissance'), sub: 'sur 20 ans' })),
+      { id: 'risques', label: 'Risques recensés (DDRM)', text: list(r.risques, 'aucun recensé'), sub: r.risques.state === 'unknown' ? 'absent de la base GASPAR' : null },
+      { id: 'ppr', label: 'Plans de prévention opposables', text: list(r.ppr, 'aucun'), sub: r.ppr.state === 'unknown' ? 'absent de la base GASPAR' : null },
+      { id: 'trait', label: 'Recul du trait de côte', text: traitText(r.trait) },
+    ],
+    note: RISK_CAVEAT,
+    sources: [
+      { ...SOURCES.gaspar, period: '20 dernières années (CatNat) ; état actuel (risques, plans)' },
+      { ...SOURCES.traitcote, period: 'décret en vigueur' },
+    ],
   };
 }
 
@@ -176,24 +203,6 @@ function departmentSection(ctx, dep, terr) {
     };
   }
   return sec;
-}
-
-function windSection(wind) {
-  const sec = { id: 'vent', scope: 'point', title: 'Vent (semaine écoulée)', rows: [] };
-  if (wind === 'error') return { ...sec, state: 'error' };
-  if (!wind) return { ...sec, state: 'loading' };
-  return {
-    ...sec,
-    rows: [
-      { id: 'vent_moy', label: 'Vitesse moyenne', text: kmh(wind.mean), sub: mps(wind.mean) },
-      { id: 'vent_max', label: 'Vitesse maximale', text: kmh(wind.max), sub: `${mps(wind.max)} · ${fmtMoment(wind.maxAt)}` },
-      { id: 'vent_dir', label: 'Direction dominante', text: windPhrase(wind.sector), sub: `${fmtNumber(Math.round(wind.share * 100))}${NBSP}% du temps` },
-      { id: 'vent_noeud', label: 'Donnée réelle la plus proche', text: fmtDistance(wind.nodeKm), sub: 'le reste est interpolé' },
-    ],
-    period: fmtWeek(wind.from, wind.to),
-    note: 'Vent à 10 m sur une maille d’environ 50 km : une lecture régionale, pas celle du village (relief, vallée).',
-    source: { label: wind.source?.label || 'Open-Meteo', url: wind.source?.url, period: fmtWeek(wind.from, wind.to), licence: wind.source?.licence },
-  };
 }
 
 /** Sous-titre d'identité : « Drôme (26) · Auvergne-Rhône-Alpes · 4 844 hab. ». */

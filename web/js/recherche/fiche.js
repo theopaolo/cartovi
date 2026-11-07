@@ -5,8 +5,9 @@ import { staleBadge } from '../panel.js';
 import { NATIONAL_LEFT } from './text.js';
 import { MAX_COMPARE } from './hash.js';
 import { identityLine } from './profile.js';
+import { riskNodes } from '../communes/risks-view.js';
 
-const SCOPE = { commune: 'valeurs de la commune', departement: 'valeurs du département', point: 'lecture au point de la commune' };
+const SCOPE = { commune: 'valeurs de la commune', departement: 'valeurs du département' };
 
 export const sourceLink = (src) =>
   src?.url ? h('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, src.label || src.provider || 'Source') : src?.label || src?.provider || 'Source';
@@ -77,6 +78,8 @@ function section(s) {
   }
   if (s.id === 'politique') {
     out.append(...s.rows.map(share), h('p', { class: 'muted small' }, s.reference));
+  } else if (s.id === 'risques') {
+    out.append(...riskNodes(s.reading));
   } else {
     out.append(rows(s.rows));
   }
@@ -89,6 +92,7 @@ function section(s) {
   if (s.empty) out.append(h('p', { class: 'muted' }, s.empty));
   if (s.note) out.append(h('p', { class: 'muted small' }, s.note));
   if (s.source) out.append(meta(s.source.period, s.source, s.source.licence));
+  for (const src of s.sources || []) out.append(meta(src.period, src));
   return out;
 }
 
