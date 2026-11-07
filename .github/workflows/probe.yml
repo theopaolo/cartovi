@@ -1,0 +1,23 @@
+# TEMPORAIRE — outil de développement : inspecte des réponses d'API depuis un
+# runner (le conteneur de dev n'a pas accès à ces domaines). À supprimer.
+name: Sonde API (dev)
+on:
+  push:
+    paths: [".github/probe.txt"]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          grep -v '^#' .github/probe.txt | while IFS=$'\t' read -r u q; do
+            [ -z "$u" ] && continue
+            echo "=================== $u"
+            curl -sSL --max-time 300 -A "carteplan-probe" -o /tmp/r -w "HTTP %{http_code} | %{content_type} | %{size_download} octets\n" "$u" || true
+            if [ "${q#sh }" != "$q" ]; then (eval "${q#sh }") | head -c 9000
+            elif [ -n "$q" ]; then jq -c "$q" /tmp/r | head -c 9000
+            else head -c 2500 /tmp/r; fi
+            echo
+          done

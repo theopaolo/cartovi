@@ -1,0 +1,7 @@
+https://files.georisques.fr/GASPAR/gaspar.zip	sh python3 -c 'import zipfile,csv,io,collections,sys;z=zipfile.ZipFile("/tmp/r");names=z.namelist();print(names)
+def rows(pat):
+    n=[x for x in names if pat in x][0]; t=z.read(n).decode("utf-8-sig","replace"); return list(csv.DictReader(io.StringIO(t),delimiter=";"))
+c=rows("catnat_gaspar"); k=[f for f in c[0] if "lib_risque" in f][0]; print("CATNAT", list(c[0].keys())); print(collections.Counter(r[k] for r in c).most_common(40))
+d=rows("ddrm_risq"); print("DDRM", list(d[0].keys()), d[0]); kk=[f for f in d[0] if "risq" in f.lower() and "lib" in f.lower()]; print(kk); print(collections.Counter(r[kk[0]] for r in d).most_common(45) if kk else "")
+p=rows("pprn_gaspar"); print("PPRN", list(p[0].keys()), p[0]); kl=[f for f in p[0] if "risque" in f.lower()]; print(collections.Counter(x.strip() for r in p for x in (r[kl[0]] or "").split(",")).most_common(30) if kl else "")
+t=rows("tim_gaspar"); print("TIM", list(t[0].keys()), t[0])'
