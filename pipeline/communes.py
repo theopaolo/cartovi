@@ -35,7 +35,7 @@ from .util import dep_of_commune, norm_commune
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 6  # 6 : décret trait de côte ; 5 : CatNat par aléa, DDRM, PPR ; 4 : critères fins
+VERSION = 7  # 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -339,9 +339,12 @@ def fine_grained(ctx, coms):
 
     def risques():
         ddrm, ppr = catnat.risks_by_commune(ctx)
+        # un département entièrement absent de la base (Drôme, Puy-de-Dôme en 2026) n'est pas
+        # un département sans risque : ses communes restent « non renseignées » (null)
+        covered = {"risques": {dep_of_commune(k) for k in ddrm}, "ppr": {dep_of_commune(k) for k in ppr}}
         for c in coms:
-            out["risques"][c.code] = sorted(ddrm.get(c.code, ()))
-            out["ppr"][c.code] = sorted(ppr.get(c.code, ()))
+            for col, src in (("risques", ddrm), ("ppr", ppr)):
+                out[col][c.code] = sorted(src.get(c.code, ())) if c.dep in covered[col] else None
 
     def nucleaire():
         sites = [s for s in json.loads(NUCLEAR_SITES.read_text("utf-8"))["sites"] if s.get("ppi_km")]
