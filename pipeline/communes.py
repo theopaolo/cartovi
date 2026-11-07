@@ -35,7 +35,7 @@ from .util import dep_of_commune, norm_commune
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 4  # 4 : critères de terres et de risques à la commune ; 3 : gare principale ; 2 : coût d'accès
+VERSION = 5  # 5 : CatNat par aléa, risques DDRM et PPR ; 4 : critères fins ; 3 : gare principale
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -293,7 +293,11 @@ def prices(ctx):
 # --- assemblage ----------------------------------------------------------------------------------
 
 
-FINE = ("densite", "artif", "catnat", "nucleaire_km", "seveso_10km")
+FINE = ("densite", "artif", "catnat", "nucleaire_km", "seveso_10km",
+        "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt", "risques", "ppr")
+
+
+GROUPS = {"catnat": ("catnat", "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt"), "risques": ("risques", "ppr")}
 
 
 def fine_grained(ctx, coms):
@@ -307,7 +311,8 @@ def fine_grained(ctx, coms):
         try:
             fn()
         except Exception as e:  # noqa: BLE001
-            out[name] = {}
+            for k in GROUPS.get(name, (name,)):
+                out[k] = {}
             ctx.log(f"  {name} indisponible à la commune ({type(e).__name__}: {e})")
 
     def densite():
@@ -324,9 +329,18 @@ def fine_grained(ctx, coms):
                 out["artif"][c.code] = round(v, 2)
 
     def catnat_():
-        counts = catnat.by_commune(ctx)
+        by_type = catnat.by_commune_type(ctx)
         for c in coms:
-            out["catnat"][c.code] = counts.get(c.code, 0)  # absente de GASPAR : aucune reconnaissance
+            d = by_type.get(c.code, {})  # absente de GASPAR : aucune reconnaissance
+            out["catnat"][c.code] = sum(d.values())
+            for t in ("inond", "sech", "mer", "mvt"):
+                out[f"catnat_{t}"][c.code] = d.get(t, 0)
+
+    def risques():
+        ddrm, ppr = catnat.risks_by_commune(ctx)
+        for c in coms:
+            out["risques"][c.code] = sorted(ddrm.get(c.code, ()))
+            out["ppr"][c.code] = sorted(ppr.get(c.code, ()))
 
     def nucleaire():
         sites = [s for s in json.loads(NUCLEAR_SITES.read_text("utf-8"))["sites"] if s.get("ppi_km")]
@@ -344,7 +358,7 @@ def fine_grained(ctx, coms):
             out["seveso_10km"][c.code] = sum(1 for _ in grid.near(c.x, c.y, SEVESO_RADIUS_KM))
 
     for name, fn in (("densite", densite), ("artif", artif), ("catnat", catnat_), ("nucleaire_km", nucleaire),
-                     ("seveso_10km", seveso)):
+                     ("seveso_10km", seveso), ("risques", risques)):
         guarded(name, fn)
     ctx.log("  à la commune : " + ", ".join(f"{k} {len(v)}" for k, v in out.items()))
     return out
