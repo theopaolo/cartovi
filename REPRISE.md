@@ -11,8 +11,8 @@ Note de passation entre sessions de travail (à lire en premier par une nouvelle
   `flux` (vent de la semaine → `web/data/flux/vent.json`). Le bot commite les données.
 - **Site** (`web/`, JS sans framework) : `index.html` (départements, score pondérable),
   `communes.html` (filtres + score personnalisé relatif à la sélection), `recherche.html`
-  (fiche d'une commune, comparaison), `flux.html` (expérimentation vent, en cours de retrait
-  de la navigation).
+  (fiche d'une commune, comparaison), `flux.html` (expérimentation vent,
+  hors navigation).
 - **README.md** : architecture, sources, méthode, limites, pistes non intégrées.
 - **Aperçu en ligne** (figé, privé) : https://claude.ai/artifact/HvxFH3te6DJNNrY6HSzgEW —
   republier depuis une copie de `web/` où les liens `download` sont remplacés par un lien
@@ -29,19 +29,20 @@ Note de passation entre sessions de travail (à lire en premier par une nouvelle
    page gardée comme expérimentation.
 6. Bascule de lecture du score : centiles / min-max.
 
-## En cours au moment de la passation (commit « version de travail » 4902242)
+## Étape 1 terminée (7 novembre 2026)
 
-Étape 1, interface : critères de risque par aléa dans le score des communes, filtres
-« exclure les communes… » (submersion, trait de côte, feu, PPR inondation/argiles,
-barrage, nucléaire < 20 km, Seveso < 10 km, non renseignées), section risques dans la
-fiche et la comparaison, bascule centiles/min-max (`minmaxScores` dans `web/js/score.js`),
-retrait du vent. **À vérifier** : `node web/js/communes/score-communes.test.mjs`,
-`node web/js/recherche/search.test.mjs`, absence d'erreur console sur les 4 pages
-(Playwright : `/opt/node-tools/node_modules/playwright`, Chromium `/opt/pw-browsers`),
-puis commit final et republication de l'aperçu.
-
-Données communales v7 en place : `catnat_inond/sech/mer/mvt`, `risques` (DDRM, null pour
-la Drôme et le Puy-de-Dôme absents de GASPAR), `ppr`, `trait_cote` (320 communes).
+- Critères de risque par aléa dans le score des communes (inondations, sécheresse-argiles,
+  vagues-submersion, mouvements de terrain), filtres « exclure les communes… » (submersion,
+  trait de côte, feu, PPR inondation/argiles, barrage, nucléaire < 20 km, Seveso < 10 km,
+  non renseignées), section risques dans la fiche Recherche et la comparaison.
+- Bascule de lecture centiles / min-max (`minmaxScores`, `scorerOf` dans `web/js/score.js`)
+  sur la carte des départements et le score des communes (hash `n=minmax`).
+- Vent retiré de la navigation et des fiches ; `flux.html` gardée comme expérimentation,
+  liée depuis la section Méthode de la page principale.
+- Autotests : `node web/js/score.test.mjs`, `web/js/communes/score-communes.test.mjs`,
+  `web/js/communes/risks.test.mjs`, `web/js/recherche/search.test.mjs`.
+- Données communales v7 : `catnat_inond/sech/mer/mvt`, `risques` (DDRM, null pour la Drôme
+  et le Puy-de-Dôme absents de GASPAR), `ppr`, `trait_cote` (320 communes).
 
 ## Prochaines étapes demandées
 
@@ -70,6 +71,6 @@ la Drôme et le Puy-de-Dôme absents de GASPAR), `ppr`, `trait_cote` (320 commun
 
 ## Message pour démarrer une nouvelle session
 
-> Lis REPRISE.md et README.md du dépôt cartovi (branche ccr-74119e54-gru9fv), vérifie
-> l'état de l'étape 1 (commit « version de travail »), termine-la et republie l'aperçu,
-> puis propose-moi le plan de l'étape 2.
+> Lis REPRISE.md et README.md du dépôt cartovi (branche ccr-74119e54-gru9fv), puis
+> propose-moi le plan de l'étape 2 (climat et eau officiels) en signalant les décisions
+> qui m'appartiennent (compte DRIAS, jeux « test », calculs hors ligne).
