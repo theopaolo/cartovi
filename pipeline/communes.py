@@ -35,7 +35,7 @@ from .util import dep_of_commune, norm_commune
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 5  # 5 : CatNat par aléa, risques DDRM et PPR ; 4 : critères fins ; 3 : gare principale
+VERSION = 6  # 6 : décret trait de côte ; 5 : CatNat par aléa, DDRM, PPR ; 4 : critères fins
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -51,6 +51,7 @@ VOTE_RADIUS_KM = 10
 SEVESO_RADIUS_KM = 10
 SEVESO_SITES = ROOT / "web" / "data" / "risques" / "seveso.json"  # sous-produit de la source Seveso
 NUCLEAR_SITES = Path(__file__).resolve().parent / "static" / "nuclear_sites.json"
+TRAIT_COTE = "66f2b36b0ef156e735cbe74a"  # liste des communes soumises au recul du trait de côte (décrets)
 CULTURE_RADIUS_KM = 15
 
 # Nuances ministérielles des listes de gauche aux européennes 2024.
@@ -294,7 +295,7 @@ def prices(ctx):
 
 
 FINE = ("densite", "artif", "catnat", "nucleaire_km", "seveso_10km",
-        "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt", "risques", "ppr")
+        "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt", "risques", "ppr", "trait_cote")
 
 
 GROUPS = {"catnat": ("catnat", "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt"), "risques": ("risques", "ppr")}
@@ -357,8 +358,17 @@ def fine_grained(ctx, coms):
         for c in coms:
             out["seveso_10km"][c.code] = sum(1 for _ in grid.near(c.x, c.y, SEVESO_RADIUS_KM))
 
+    def trait_cote():
+        # communes listées par décret pour s'adapter au recul du trait de côte (liste en vigueur)
+        res = datagouv.resource(ctx.http, TRAIT_COTE, fmt="csv")
+        active = {norm_commune(r["code_commune"]) for r in ctx.http.csv(res["url"]) if r.get("is_currently_active") == "True"}
+        if len(active) < 200:
+            raise ValueError(f"{len(active)} communes seulement")
+        for c in coms:
+            out["trait_cote"][c.code] = c.code in active
+
     for name, fn in (("densite", densite), ("artif", artif), ("catnat", catnat_), ("nucleaire_km", nucleaire),
-                     ("seveso_10km", seveso), ("risques", risques)):
+                     ("seveso_10km", seveso), ("risques", risques), ("trait_cote", trait_cote)):
         guarded(name, fn)
     ctx.log("  à la commune : " + ", ".join(f"{k} {len(v)}" for k, v in out.items()))
     return out
