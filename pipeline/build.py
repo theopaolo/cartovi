@@ -164,7 +164,7 @@ def export(con, out_dir, terrs):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--db", default=ROOT / "data" / "cartovi.sqlite", type=Path)
+    p.add_argument("--db", default=ROOT / "data" / "carteplan.sqlite", type=Path)
     p.add_argument("--out", default=ROOT / "web" / "data", type=Path)
     p.add_argument("--only", help="identifiants de sources, séparés par des virgules")
     p.add_argument("--cache", action="store_true", help="cache disque des requêtes HTTP")

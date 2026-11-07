@@ -16,7 +16,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-USER_AGENT = "cartovi/1.0 (+https://github.com/theopaolo/cartovi)"
+USER_AGENT = "carteplan/1.0 (+https://github.com/theopaolo/cartovi)"
 CACHE_DIR = Path(__file__).resolve().parent.parent / ".cache"
 
 

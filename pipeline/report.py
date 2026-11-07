@@ -8,12 +8,12 @@ from . import db
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def main(path=ROOT / "data" / "cartovi.sqlite"):
+def main(path=ROOT / "data" / "carteplan.sqlite"):
     if not Path(path).exists():
         print("Aucune base générée.")
         return
     con = db.connect(path)
-    print("## Collecte Cartovi\n")
+    print("## Collecte Carteplan\n")
     print("| Source | Statut | Valeurs | Fin | Message |\n|---|---|---|---|---|")
     for r in con.execute(
         """SELECT * FROM run WHERE id IN (SELECT MAX(id) FROM run GROUP BY source_id) ORDER BY source_id"""

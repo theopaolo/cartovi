@@ -385,7 +385,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--force", action="store_true")
     p.add_argument("--cache", action="store_true")
-    p.add_argument("--db", default=ROOT / "data" / "cartovi.sqlite", type=Path)
+    p.add_argument("--db", default=ROOT / "data" / "carteplan.sqlite", type=Path)
     args = p.parse_args(argv)
     con = db.connect(args.db)
     last = con.execute("SELECT MAX(finished_at) t FROM run WHERE source_id='communes' AND status='ok'").fetchone()["t"]

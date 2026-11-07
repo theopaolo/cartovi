@@ -1,4 +1,6 @@
-# Cartovi — où s'installer en autonomie ?
+# Carteplan — où s'installer en autonomie ?
+
+> Anciennement *Cartovi*. Le dépôt GitHub porte encore ce nom (`theopaolo/cartovi`) tant qu'il n'est pas renommé dans ses réglages ; GitHub redirige les anciennes adresses.
 
 Carte des 96 départements métropolitains classés selon des critères d'habitabilité
 « autonome » : eau, climat, prix du foncier, densité, artificialisation, risques
@@ -7,7 +9,7 @@ publiques ouvertes.
 
 Le projet part d'une carte virale (« Carte de l'autosuffisance en France ») générée
 par IA : aucune source, des étiquettes fausses (deux « Corrèze », « Bannsois »…), des
-classes posées à l'œil. Cartovi reprend l'idée en la rendant **vérifiable** (chaque
+classes posées à l'œil. Carteplan reprend l'idée en la rendant **vérifiable** (chaque
 valeur a une source, une période et une date de collecte) et **discutable** (les
 pondérations sont des curseurs, pas des vérités).
 
@@ -19,7 +21,7 @@ GitHub Actions (lundi 04:23 UTC)
        ├─ sources/*.py                 une source = un module : SOURCE, INDICATORS, fetch(ctx)
        │     └─ API publiques          geo.api, data.gouv, Géorisques, VigiEau, Hub'Eau, Open-Meteo
        ├─ validate()                   couverture ≥ 95 %, garde-fous de vraisemblance
-       ├─ data/cartovi.sqlite          historique de toutes les observations + journal des collectes
+       ├─ data/carteplan.sqlite          historique de toutes les observations + journal des collectes
        └─ web/data/*.json              export pour le site (dernière valeur par indicateur)
   └─ commit des données, puis déploiement GitHub Pages (optionnel)
 
@@ -141,7 +143,7 @@ Python ≥ 3.10, aucune dépendance.
 
 `.github/workflows/update.yml` tourne chaque lundi, sur `workflow_dispatch` et à chaque
 modification du pipeline. Il collecte, écrit un résumé dans l'onglet Actions, puis
-commite `data/cartovi.sqlite` et `web/data/` quand quelque chose a changé.
+commite `data/carteplan.sqlite` et `web/data/` quand quelque chose a changé.
 
 Pour publier le site sur GitHub Pages :
 
@@ -151,11 +153,11 @@ Pour publier le site sur GitHub Pages :
 ## Interroger la base
 
 ```sh
-sqlite3 data/cartovi.sqlite "
+sqlite3 data/carteplan.sqlite "
   SELECT t.name, round(l.value) FROM latest l JOIN territory t ON t.code = l.territory_code
   WHERE l.indicator_id = 'secheresse_jours' ORDER BY l.value DESC LIMIT 10;"
 
-sqlite3 data/cartovi.sqlite "SELECT source_id, status, finished_at, message FROM run ORDER BY id DESC LIMIT 20;"
+sqlite3 data/carteplan.sqlite "SELECT source_id, status, finished_at, message FROM run ORDER BY id DESC LIMIT 20;"
 ```
 
 ## Ajouter une source

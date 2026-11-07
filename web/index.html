@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Cartovi — où s’installer avec un peu d’autonomie ?</title>
+  <title>Carteplan — où s’installer avec un peu d’autonomie ?</title>
   <meta name="description" content="Carte comparative des 96 départements métropolitains pour s’installer avec une part d’autosuffisance : eau, foncier, densité, risques, pollution. Données sourcées, pondérations réglables.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231b7a5a'/%3E%3Cpath d='M4 11l2-6 3 3 3-4v7z' fill='%23f2e6b1'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
@@ -19,7 +19,7 @@
 
   <div class="shell">
     <header class="top">
-      <h1>Cartovi</h1>
+      <h1>Carteplan</h1>
       <p class="tagline">Où s’installer avec un peu d’autonomie ? Un classement <strong>relatif</strong> des 96 départements métropolitains, sourcé et réglable.</p>
       <nav class="top-nav" aria-label="Pages du site">
         <a href="index.html" aria-current="page">Départements</a>
@@ -68,7 +68,7 @@
   <section id="methode" class="method" tabindex="-1" aria-labelledby="methode-title">
     <div class="method-inner">
       <h2 id="methode-title">Méthode &amp; sources</h2>
-      <p>Cartovi est une version transparente, sourcée et réglable d’une carte générée par IA qui a beaucoup circulé : au lieu d’un verdict opaque, chaque score est recalculé ici à partir de données ouvertes, et les jugements de valeur sont visibles et modifiables.</p>
+      <p>Carteplan est une version transparente, sourcée et réglable d’une carte générée par IA qui a beaucoup circulé : au lieu d’un verdict opaque, chaque score est recalculé ici à partir de données ouvertes, et les jugements de valeur sont visibles et modifiables.</p>
 
       <h3>Comment l’indice est calculé</h3>
       <ol>
@@ -101,13 +101,13 @@
       <h3>Données</h3>
       <p>
         <a href="data/indicators.json" download>indicators.json</a> (valeurs utilisées par cette page) ·
-        <a href="data/cartovi.sqlite" download>cartovi.sqlite</a> (base complète avec l’historique des collectes).
+        <a href="data/carteplan.sqlite" download>carteplan.sqlite</a> (base complète avec l’historique des collectes).
       </p>
       <p id="generated" class="muted"></p>
       <p class="muted small">La collecte est automatique et hebdomadaire. Une source en échec n’écrase jamais les dernières valeurs valides : elle est signalée « périmé ».</p>
     </div>
   </section>
 
-  <noscript><p class="notice">Cartovi a besoin de JavaScript pour afficher la carte et recalculer les scores.</p></noscript>
+  <noscript><p class="notice">Carteplan a besoin de JavaScript pour afficher la carte et recalculer les scores.</p></noscript>
 </body>
 </html>
