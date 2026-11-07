@@ -112,6 +112,46 @@ par un score réglable. Ce n'est pas un classement de la France. Quatre règles 
 4. **La distance nucléaire est plafonnée à 40 km**, deux fois le rayon PPI : au-delà,
    elle ne départage plus.
 
+## Risques à la commune : ce qui est mesuré, et ce qui ne l'est pas
+
+| Donnée | Ce qu'elle dit | Ce qu'elle ne dit pas | Source |
+|---|---|---|---|
+| Arrêtés CatNat par aléa, 20 ans (inondation, sécheresse-argiles, vagues-submersion, mouvements de terrain) | des sinistres **reconnus** par l'État | l'intensité, ni les sinistres non déclarés ; une commune fusionnée perd les arrêtés pris sous son ancien code | GASPAR (Géorisques) |
+| Risques recensés (DDRM) | la préfecture **identifie** le risque sur la commune | son intensité ni la part du territoire exposée. Drôme et Puy-de-Dôme sont absents de l'export 2026 : « non renseigné », jamais « aucun risque » | GASPAR |
+| Plans de prévention opposables (PPR) | un zonage **réglementaire** existe (inondation, littoral, argiles…) | la part de la commune en zone rouge ou bleue | GASPAR |
+| Recul du trait de côte | la commune est listée par le décret en vigueur (2026-95) | la vitesse d'érosion locale | liste officielle, data.gouv.fr |
+| Distance à la centrale, sites Seveso à 10 km | une proximité | une exposition dosée | ASNR, Géorisques |
+
+Dans la page Communes, ces risques servent de deux façons. Les **filtres** excluent une
+commune sans compensation possible. Le **score** les pondère avec les autres critères :
+une bonne offre culturelle peut alors compenser un risque d'inondation, et c'est un
+choix qu'on assume.
+
+**Deux modes de lecture du score.** Par rang (centiles) : résistant aux valeurs extrêmes,
+mais 1 et 20 sinistres ne sont plus que deux rangs voisins. Par écart (min-max, la
+méthode de l'IDH du PNUD et de l'IBV d'Alternatives Économiques) : les écarts sont
+conservés, mais une seule valeur extrême écrase toutes les autres. Que le classement
+change d'un mode à l'autre est en soi une information.
+
+### Pistes non encore intégrées (et pourquoi)
+
+- **Projections climatiques officielles par commune (TRACC, +2 °C en 2030, +2,7 °C en
+  2050)** : les indicateurs DRIAS et Climadiag Commune de Météo-France ne sont pas
+  publiés en table communale ouverte. Il faut un compte DRIAS et des fichiers NetCDF.
+  Le jeu de l'ADEME à +2,7 °C ne couvre que 8 zones climatiques du bâtiment. Le
+  climat futur reste donc l'approximation Open-Meteo (un seul modèle), affichée comme
+  telle.
+- **Débits futurs (Explore2)** : tables par commune publiées en 2026 mais marquées
+  « test » par leur producteur, environ 150 Mo par indicateur.
+- **Îlots de chaleur (LCZ du Cerema)** : 88 archives de 100 à 200 Mo à intersecter.
+  C'est un calcul à faire une fois, hors ligne.
+- **Zones inondables chiffrées (EAIP) et exposition aux argiles** : uniquement des
+  polygones, sans table communale nationale.
+- **Axe « bien-être présent »** façon IBV : faisable à la commune avec des sources
+  ouvertes (Filosofi 2021, recensement 2022, accès aux médecins, loyers, logement
+  social, équipements). C'est l'étape suivante, pour une vue à deux axes : bien-être
+  présent et exposition future.
+
 ## Recherche : la fiche d'une commune
 
 `recherche.html` (et le champ de recherche présent dans l'en-tête de chaque page)
