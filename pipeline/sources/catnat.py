@@ -61,7 +61,9 @@ def _col(fields, key):
     raise KeyError(f"colonne {key} introuvable parmi {fields}")
 
 
-def fetch(ctx):
+def by_commune(ctx):
+    """Reconnaissances CatNat par commune (événements des YEARS dernières années),
+    dédoublonnées ; partagé avec la couche communale."""
     archive = zipfile.ZipFile(io.BytesIO(ctx.http.get(URL, timeout=300)))
     member = next(n for n in archive.namelist() if re.search(r"catnat_gaspar.*\.csv$", n))
     ctx.log(f"  {member}")
@@ -77,17 +79,24 @@ def fetch(ctx):
         com = norm_commune(r.get(c_com))
         if start >= since and com:
             seen.add((r.get(c_id), com, r.get(c_risk), start))
+    ctx.log(f"  {len(seen)} reconnaissances depuis {since}")
+    if not 20_000 < len(seen) < 300_000:  # ~68 000 sur 2006-2026
+        raise ValueError(f"nombre de reconnaissances invraisemblable : {len(seen)}")
     counts = {}
     for _, com, _, _ in seen:
+        counts[com] = counts.get(com, 0) + 1
+    return counts
+
+
+def fetch(ctx):
+    counts = {}
+    for com, n in by_commune(ctx).items():
         dep = dep_of_commune(com)
-        counts[dep] = counts.get(dep, 0) + 1
+        counts[dep] = counts.get(dep, 0) + n
     n_communes = {}
     for c in communes(ctx):
         dep = dep_of_commune(c.get("code"))
         n_communes[dep] = n_communes.get(dep, 0) + 1
-    ctx.log(f"  {len(seen)} reconnaissances depuis {since}")
-    if not 20_000 < len(seen) < 300_000:  # ~68 000 sur 2006-2026
-        raise ValueError(f"nombre de reconnaissances invraisemblable : {len(seen)}")
     period = f"{ctx.today.year - YEARS}–{ctx.today.year}"
     for dep in ctx.territories:
         if n_communes.get(dep):

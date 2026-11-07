@@ -6,9 +6,13 @@ parcourt donc toutes les installations de chaque département (≈140 pages de
 1 000) et on filtre ici. Rafraîchissement mensuel : ces inventaires bougent peu.
 """
 
+import json
+from pathlib import Path
+
 from ..util import per_1000km2
 
 API = "https://georisques.gouv.fr/api/v1"
+SITES = Path(__file__).resolve().parent.parent.parent / "web" / "data" / "risques" / "seveso.json"
 
 
 def _pages(ctx, path, params):
@@ -32,6 +36,7 @@ class Seveso:
         "licence": "Licence Ouverte 2.0",
         "refresh": "mensuel",
         "max_age_days": 28,
+        "version": 2,  # 2 : exporte aussi les coordonnées des sites (web/data/risques/seveso.json)
     }
     INDICATORS = [
         {
@@ -53,19 +58,35 @@ class Seveso:
 
     @classmethod
     def fetch(cls, ctx):
-        counts = {}
+        counts, sites = {}, {}
         for code in ctx.territories:
             seen = set()
             for inst in _pages(ctx, "installations_classees", {"departement": code}):
                 if (inst.get("statutSeveso") or "").startswith("Seveso seuil") and not (
                     inst.get("etatActivite") or ""
                 ).startswith("Cess"):
-                    seen.add(inst.get("codeAIOT") or inst.get("siret") or inst.get("raisonSociale"))
+                    key = inst.get("codeAIOT") or inst.get("siret") or inst.get("raisonSociale")
+                    seen.add(key)
+                    if inst.get("latitude") and inst.get("longitude"):
+                        sites[key] = {
+                            "nom": inst.get("raisonSociale"),
+                            "seuil": "haut" if "haut" in inst["statutSeveso"] else "bas",
+                            "dep": code,
+                            "lat": round(float(inst["latitude"]), 5),
+                            "lon": round(float(inst["longitude"]), 5),
+                        }
             counts[code] = len(seen)
         total = sum(counts.values())
-        ctx.log(f"  {total} établissements Seveso")
+        ctx.log(f"  {total} établissements Seveso, {len(sites)} géolocalisés")
         if not 800 < total < 2000:  # ~1 300 en France métropolitaine
             raise ValueError(f"total Seveso invraisemblable : {total}")
+        # sous-produit : la couche communale compte les sites à moins de 10 km de chaque commune
+        SITES.parent.mkdir(parents=True, exist_ok=True)
+        SITES.write_text(
+            json.dumps({"generated_at": ctx.today.isoformat(), "sites": sorted(sites.values(), key=lambda x: x["dep"])},
+                       ensure_ascii=False, separators=(",", ":")),
+            "utf-8",
+        )
         for code, v in per_1000km2(counts, ctx.territories).items():
             yield "seveso", code, ctx.today.strftime("%Y-%m"), v
 

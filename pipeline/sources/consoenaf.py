@@ -8,7 +8,7 @@ annuelles `nafYYartZZ` sont en m² (vérifié sur les totaux nationaux ci-dessou
 import re
 
 from .. import datagouv
-from ..util import dep_of_commune
+from ..util import dep_of_commune, norm_commune
 
 SOURCE = {
     "id": "consoenaf",
@@ -55,7 +55,9 @@ def _latest_dataset(http):
     return best[1]
 
 
-def fetch(ctx):
+def by_commune(ctx):
+    """Consommation d'espaces par commune sur les YEARS dernières années :
+    ({commune: (m² consommés, surface m²)}, première année, dernière année)."""
     ds_id = _latest_dataset(ctx.http)
     res = datagouv.resource(ctx.http, ds_id, url_pattern=r"-com\.csv$")
     ctx.log(f"  fichier : {res['url']}")
@@ -67,22 +69,38 @@ def fetch(ctx):
     surf_col = next((c for c in rows.fieldnames if c.startswith("surfcom")), None)
     if len(yearly) < YEARS or surf_col is None or "idcom" not in rows.fieldnames:
         raise ValueError(f"colonnes inattendues : {rows.fieldnames[:20]}")
-    conso, surf, national = {}, {}, 0.0
+    out, national = {}, 0.0
     for r in rows:
-        dep = dep_of_commune(r.get("idcom"))
-        vals = [float(r[c] or 0) for c in yearly]
-        national += sum(vals)
-        if dep is None:
-            continue
-        conso[dep] = conso.get(dep, 0.0) + sum(vals)
-        surf[dep] = surf.get(dep, 0.0) + float(r[surf_col] or 0)
+        com = norm_commune(r.get("idcom"))
+        m2 = sum(float(r[c] or 0) for c in yearly)
+        national += m2
+        if com:
+            out[com] = (m2, float(r[surf_col] or 0))
     # Garde-fou d'unité : la France consomme ~15 000 à 30 000 ha/an.
     ha_per_year = national / 1e4 / YEARS
     if not 5_000 < ha_per_year < 60_000:
         raise ValueError(f"total national invraisemblable : {ha_per_year:.0f} ha/an (unité changée ?)")
     first, last = 2000 + int(COL.match(yearly[0]).group(1)), 2000 + int(COL.match(yearly[-1]).group(2))
     ctx.log(f"  {yearly[0]}…{yearly[-1]}, France : {ha_per_year:.0f} ha/an")
+    return out, first, last
+
+
+def rate(m2, surface_m2):
+    """m² consommés sur YEARS ans -> ha/an pour 100 km²."""
+    return (m2 / 1e4 / YEARS) / (surface_m2 / 1e8) if surface_m2 > 0 else None
+
+
+def fetch(ctx):
+    per_com, first, last = by_commune(ctx)
+    conso, surf = {}, {}
+    for com, (m2, s) in per_com.items():
+        dep = dep_of_commune(com)
+        if dep is None:
+            continue
+        conso[dep] = conso.get(dep, 0.0) + m2
+        surf[dep] = surf.get(dep, 0.0) + s
     for dep, m2 in conso.items():
-        km2 = surf[dep] / 1e6 if surf[dep] > 1e6 else ctx.territories[dep].area_km2 if dep in ctx.territories else None
-        if km2:
-            yield "conso_naf", dep, f"{first}–{last}", (m2 / 1e4 / YEARS) / (km2 / 100)
+        s = surf[dep] if surf[dep] > 1e6 else (ctx.territories[dep].area_km2 * 1e6 if dep in ctx.territories else 0)
+        v = rate(m2, s)
+        if v is not None:
+            yield "conso_naf", dep, f"{first}–{last}", v

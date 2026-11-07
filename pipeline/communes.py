@@ -29,12 +29,13 @@ from types import SimpleNamespace
 from . import datagouv, db, geo, territories
 from .http import Http
 from .util import communes as fetch_communes
+from .sources import catnat, consoenaf
 from .util import dep_of_commune, norm_commune
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 3  # 3 : gare principale (la plus desservie à proximité) ; 2 : coût d'accès, prix PLM
+VERSION = 4  # 4 : critères de terres et de risques à la commune ; 3 : gare principale ; 2 : coût d'accès
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -47,6 +48,9 @@ HUB_RADIUS_KM = 5  # gares comptées comme « arrivée en ville »
 STATION_RADIUS_KM = 6  # gares accessibles depuis le centre d'une commune
 MAX_TRAIN_MIN = 150  # au-delà, le temps de trajet n'est pas conservé
 VOTE_RADIUS_KM = 10
+SEVESO_RADIUS_KM = 10
+SEVESO_SITES = ROOT / "web" / "data" / "risques" / "seveso.json"  # sous-produit de la source Seveso
+NUCLEAR_SITES = Path(__file__).resolve().parent / "static" / "nuclear_sites.json"
 CULTURE_RADIUS_KM = 15
 
 # Nuances ministérielles des listes de gauche aux européennes 2024.
@@ -289,6 +293,63 @@ def prices(ctx):
 # --- assemblage ----------------------------------------------------------------------------------
 
 
+FINE = ("densite", "artif", "catnat", "nucleaire_km", "seveso_10km")
+
+
+def fine_grained(ctx, coms):
+    """Critères de la carte des départements recalculés à la commune quand une source le
+    permet : la commune peut alors se distinguer de son département. Chaque critère est
+    indépendant : une source en panne laisse sa colonne vide (la page retombe alors sur
+    la valeur du département) sans empêcher le reste."""
+    out = {k: {} for k in FINE}
+
+    def guarded(name, fn):
+        try:
+            fn()
+        except Exception as e:  # noqa: BLE001
+            out[name] = {}
+            ctx.log(f"  {name} indisponible à la commune ({type(e).__name__}: {e})")
+
+    def densite():
+        for c in coms:
+            if c.surface_ha > 0:
+                out["densite"][c.code] = round(c.pop / (c.surface_ha / 100), 1)
+
+    def artif():
+        per_com, _, _ = consoenaf.by_commune(ctx)
+        for c in coms:
+            m2, surf = per_com.get(c.code, (None, 0))
+            v = consoenaf.rate(m2, surf) if m2 is not None else None
+            if v is not None:
+                out["artif"][c.code] = round(v, 2)
+
+    def catnat_():
+        counts = catnat.by_commune(ctx)
+        for c in coms:
+            out["catnat"][c.code] = counts.get(c.code, 0)  # absente de GASPAR : aucune reconnaissance
+
+    def nucleaire():
+        sites = [s for s in json.loads(NUCLEAR_SITES.read_text("utf-8"))["sites"] if s.get("ppi_km")]
+        for c in coms:
+            out["nucleaire_km"][c.code] = round(min(geo.haversine_km(c.lon, c.lat, s["lon"], s["lat"]) for s in sites), 1)
+
+    def seveso():
+        sites = json.loads(SEVESO_SITES.read_text("utf-8"))["sites"]
+        if len(sites) < 500:
+            raise ValueError(f"{len(sites)} sites seulement")
+        grid = Grid(SEVESO_RADIUS_KM)
+        for s_ in sites:
+            grid.add(*geo.lambert93(s_["lon"], s_["lat"]), 1)
+        for c in coms:
+            out["seveso_10km"][c.code] = sum(1 for _ in grid.near(c.x, c.y, SEVESO_RADIUS_KM))
+
+    for name, fn in (("densite", densite), ("artif", artif), ("catnat", catnat_), ("nucleaire_km", nucleaire),
+                     ("seveso_10km", seveso)):
+        guarded(name, fn)
+    ctx.log("  à la commune : " + ", ".join(f"{k} {len(v)}" for k, v in out.items()))
+    return out
+
+
 def main_station(near, stations):
     """Gare principale d'une commune : la plus desservie parmi celles à moins de
     max(3 km, gare la plus proche + 1 km). La plus proche n'est pas toujours la bonne :
@@ -309,7 +370,8 @@ def build(ctx):
             lon, lat = c["centre"]["coordinates"]
             x, y = geo.lambert93(lon, lat)
             coms.append(SimpleNamespace(code=c["code"], name=c.get("nom", ""), dep=dep,
-                                        pop=c.get("population") or 0, lon=lon, lat=lat, x=x, y=y))
+                                        pop=c.get("population") or 0, surface_ha=c.get("surface") or 0,
+                                        lon=lon, lat=lat, x=x, y=y))
     ctx.log(f"  {len(coms)} communes")
 
     hubs = []
@@ -324,6 +386,7 @@ def build(ctx):
     vote = votes(ctx)
     culture = venues(ctx)
     price = prices(ctx)
+    fine = fine_grained(ctx, coms)
 
     by_station = {}
     for (sid, k), minutes in best.items():
@@ -339,7 +402,7 @@ def build(ctx):
         grid_cult.add(*geo.lambert93(lon, lat), cats)
 
     columns = ["code", "nom", "dep", "pop", "x", "y", "prix", "gauche_commune", "gauche_10km", *CULTURE,
-               "gare", "gare_km", "trains_jour", "villes"]
+               "gare", "gare_km", "trains_jour", "villes", *FINE]
     by_region = {}
     for c in coms:
         lv, ev = vote.get(c.code, (0, 0))
@@ -369,6 +432,7 @@ def build(ctx):
             stations[g[1]]["name"] if g else None, round(g[0], 1) if g else None,
             stations[g[1]]["departures"] if g else None,
             {str(k): list(v) for k, v in sorted(reach.items())},
+            *(fine[k].get(c.code) for k in FINE),
         ]
         by_region.setdefault(REGION_CODE[c.dep], []).append(row)
 
@@ -377,7 +441,8 @@ def build(ctx):
         "generated_at": db.now(),
         "reference_day": f"{day[:4]}-{day[4:6]}-{day[6:]}",
         "viewBox": f"0 0 1000 {height:.0f}",
-        "radius_km": {"gare": STATION_RADIUS_KM, "vote": VOTE_RADIUS_KM, "culture": CULTURE_RADIUS_KM},
+        "radius_km": {"gare": STATION_RADIUS_KM, "vote": VOTE_RADIUS_KM, "culture": CULTURE_RADIUS_KM,
+                      "seveso": SEVESO_RADIUS_KM},
         "hubs": [{**h, "x": round(tr(*geo.lambert93(h["lon"], h["lat"]))[0], 1),
                   "y": round(tr(*geo.lambert93(h["lon"], h["lat"]))[1], 1)} for h in hubs],
         "columns": columns,
