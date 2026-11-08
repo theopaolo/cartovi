@@ -1,5 +1,4 @@
-https://api.insee.fr/melodi/catalog/DS_BPE	sh python3 .github/probe.py melodi
-https://www.insee.fr/	sh python3 .github/probe.py tl
 https://www.insee.fr/	sh python3 .github/probe.py cj
+https://www.insee.fr/	sh python3 .github/probe.py melodi
 https://www.insee.fr/	sh python3 .github/probe.py fest
-https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records?limit=1	sh python3 -c "import gzip,json;b=open('/tmp/r','rb').read();b=gzip.decompress(b) if b[:2]==b'\x1f\x8b' else b;d=json.loads(b);print(d['total_count'], sorted(d['results'][0]))"
+https://www.insee.fr/	sh python3 .github/probe.py tl
