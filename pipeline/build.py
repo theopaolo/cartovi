@@ -31,6 +31,7 @@ THEMES = [
     {"id": "foncier", "label": "Foncier & densité"},
     {"id": "nature", "label": "Terres & nature"},
     {"id": "risques", "label": "Risques & pollution"},
+    {"id": "futur", "label": "Climat futur (+2,7 °C, ≈ 2050)"},
 ]
 
 

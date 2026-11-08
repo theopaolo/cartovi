@@ -471,6 +471,15 @@ select:disabled { opacity: 0.6; }
 .sc-table .sub { display: block; color: var(--muted); font-size: 0.6875rem; font-weight: 400; }
 .sc-table tr.skip { color: var(--muted); }
 .sc-table td:first-child { max-width: 11em; }
+/* climat futur : trajectoire par niveau de réchauffement (fiche Recherche) */
+.traj-table { font-size: 0.75rem; }
+.traj-table th { padding: 4px 6px; font-weight: 700; vertical-align: bottom; }
+.traj-table tbody th { font-weight: 600; vertical-align: top; border-bottom: 1px solid var(--line); }
+.traj-table td { padding: 4px 6px; vertical-align: top; white-space: nowrap; }
+.traj-table tbody tr { cursor: default; }
+.traj-table tbody tr:hover { background: none; }
+.traj-table .cur { background: var(--accent-soft); }
+.traj-table .sub { display: block; color: var(--muted); font-size: 0.6875rem; font-weight: 400; }
 .kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; margin: 0; font-size: 0.875rem; }
 .kv dt { color: var(--muted); }
 .kv dd { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }

@@ -29,13 +29,13 @@ from types import SimpleNamespace
 from . import datagouv, db, geo, territories
 from .http import Http
 from .util import communes as fetch_communes
-from .sources import catnat, consoenaf
+from .sources import catnat, consoenaf, tracc
 from .util import dep_of_commune, norm_commune
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 7  # 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
+VERSION = 8  # 8 : climat futur TRACC (DRIAS) ; 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -295,10 +295,12 @@ def prices(ctx):
 
 
 FINE = ("densite", "artif", "catnat", "nucleaire_km", "seveso_10km",
-        "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt", "risques", "ppr", "trait_cote")
+        "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt", "risques", "ppr", "trait_cote",
+        "tracc_pt", "tracc_km", *tracc.SCORED.values())
 
 
-GROUPS = {"catnat": ("catnat", "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt"), "risques": ("risques", "ppr")}
+GROUPS = {"catnat": ("catnat", "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt"), "risques": ("risques", "ppr"),
+          "tracc": ("tracc_pt", "tracc_km", *tracc.SCORED.values())}
 
 
 def fine_grained(ctx, coms):
@@ -370,8 +372,22 @@ def fine_grained(ctx, coms):
         for c in coms:
             out["trait_cote"][c.code] = c.code in active
 
+    def climat_futur():
+        # TRACC (DRIAS) : point de grille de 8 km le plus proche du centre ; la fiche lit la trajectoire
+        # complète du point dans web/data/climat/tracc.json, le score les valeurs à +2,7 °C
+        # tracc_pt = 0 : aucun point à moins de tracc.MAX_KM (îles éloignées), à distinguer d'une donnée absente (null)
+        data, grid = tracc.load()
+        assigned = tracc.by_commune(coms, data, grid)
+        for c in coms:
+            pt, km = assigned.get(c.code, (0, None))
+            out["tracc_pt"][c.code], out["tracc_km"][c.code] = pt, km
+            if pt:
+                for key, val in tracc.scored_values(data, pt).items():
+                    out[tracc.SCORED[key]][c.code] = val
+
     for name, fn in (("densite", densite), ("artif", artif), ("catnat", catnat_), ("nucleaire_km", nucleaire),
-                     ("seveso_10km", seveso), ("risques", risques), ("trait_cote", trait_cote)):
+                     ("seveso_10km", seveso), ("risques", risques), ("trait_cote", trait_cote),
+                     ("tracc", climat_futur)):
         guarded(name, fn)
     ctx.log("  à la commune : " + ", ".join(f"{k} {len(v)}" for k, v in out.items()))
     return out

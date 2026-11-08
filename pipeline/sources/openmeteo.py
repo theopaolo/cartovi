@@ -1,4 +1,7 @@
-"""Climat récent et projeté — Open-Meteo (réanalyse ERA5 et modèles CMIP6 HighResMIP).
+"""Climat récent — Open-Meteo (réanalyse ERA5).
+
+Le climat futur vient désormais des indicateurs officiels TRACC de DRIAS (tracc.py) ;
+l'ancienne projection Open-Meteo (un seul modèle global) a été retirée.
 
 Quota gratuit : 10 000 « appels » pondérés par jour et par IP, une requête
 pesant nb_points × nb_variables/10 × nb_jours/14. On échantillonne donc chaque
@@ -15,7 +18,6 @@ from .. import territories as terr
 from ..util import Deferred, communes, complete_years, dep_of_commune
 
 ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
-CLIMATE = "https://climate-api.open-meteo.com/v1/climate"
 CHUNK = 60  # points par requête : reste sous la limite de 5 000 par requête
 
 
@@ -137,54 +139,3 @@ class Recent:
                 pairs.append((code, (sum(p) / len(p) - sum(e) / len(e)) * 365.25))
         for code, v in _mean_by_dep(pairs).items():
             yield "bilan_hydrique", code, f"{years[0]}–{years[-1]}", v
-
-
-class Future:
-    SOURCE = {
-        "id": "climat_futur",
-        "label": "Open-Meteo Climate Change API (CMIP6 HighResMIP)",
-        "provider": "Open-Meteo / MRI (Japon)",
-        "url": "https://open-meteo.com/en/docs/climate-api",
-        "licence": "CC BY 4.0",
-        "refresh": "annuel (projections figées)",
-        "max_age_days": 365,
-        "version": 2,  # 2 : points de population au lieu d'une grille
-    }
-    MODEL = "MRI_AGCM3_2_S"
-    PERIOD = (2041, 2050)
-    THRESHOLD = 30.0
-    INDICATORS = [
-        {
-            "id": "jours_chauds_2050",
-            "label": "Jours chauds projetés (2041–2050)",
-            "unit": "jours/an",
-            "theme": "eau",
-            "direction": -1,
-            "weight": 1.0,
-            "decimals": 0,
-            "description": (
-                "Nombre moyen de jours par an où la température maximale atteint 30 °C sur la "
-                "décennie 2041–2050, selon un seul modèle (MRI-AGCM3-2-S, 20 km, corrigé sur "
-                "ERA5-Land, forçage HighResMIP proche d'un scénario d'émissions élevées), moyenne "
-                "de deux communes représentatives de la répartition de la population. Un "
-                "ordre de grandeur pour comparer les départements, pas une prévision."
-            ),
-        },
-    ]
-
-    @classmethod
-    def fetch(cls, ctx):
-        a, b = cls.PERIOD
-        params = {
-            "start_date": f"{a}-01-01",
-            "end_date": f"{b}-12-31",
-            "models": cls.MODEL,
-            "daily": "temperature_2m_max",
-        }
-        pairs = []
-        for code, d in _daily(ctx, CLIMATE, _points(ctx), params):
-            tx = [v for v in d["temperature_2m_max"] if v is not None]
-            if len(tx) > 0.95 * len(d["time"]):
-                pairs.append((code, sum(v >= cls.THRESHOLD for v in tx) / (b - a + 1)))
-        for code, v in _mean_by_dep(pairs).items():
-            yield "jours_chauds_2050", code, f"{a}–{b}", v

@@ -9,6 +9,7 @@ import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, plural, trainsTex
 import { CATNAT_KINDS, RISK_CAVEAT, riskLabel, riskReading } from '../communes/risks.js';
 import { traitText } from '../communes/risks-view.js';
 import { NATIONAL_LEFT, SOURCES, trainNote } from './text.js';
+import { FUTUR, TRACC_CAVEAT, TRACC_LEVELS_NOTE, TRACC_SOURCE, cellText, fmtFutur, hasFutur, pointNote, trajectory } from '../climat.js';
 
 /**
  * @param {object} ctx  { territories, payload, scores, view, index, store } (data.js loadContext)
@@ -48,6 +49,7 @@ function communeSections(ctx, c, failed) {
       pending('prix', 'Prix des maisons', SOURCES.prix),
       pending('terres', TERRES_TITLE, SOURCES.terres),
       pending('risques', RISQUES_TITLE, SOURCES.gaspar),
+      pending('futur', FUTUR_TITLE, TRACC_SOURCE),
     ];
   }
   // trajets directs vers les villes de référence, triés par durée
@@ -116,6 +118,7 @@ function communeSections(ctx, c, failed) {
     },
     terres(c, R),
     risques(c),
+    futur(c, ctx.tracc),
   ];
 }
 
@@ -163,6 +166,44 @@ function risques(c) {
       { ...SOURCES.gaspar, period: '20 dernières années (CatNat) ; état actuel (risques, plans)' },
       { ...SOURCES.traitcote, period: 'décret en vigueur' },
     ],
+  };
+}
+
+const FUTUR_TITLE = 'Climat futur — valeurs de la commune';
+
+/**
+ * Climat futur (TRACC, DRIAS) au point de grille de la commune. `rows` : valeurs à +2,7 °C (comparaison, et repli tant
+ * que la grille n'est pas chargée) ; `trajectory` : les quatre niveaux de réchauffement pour la fiche.
+ */
+function futur(c, tracc) {
+  const base = { id: 'futur', scope: 'commune', title: FUTUR_TITLE, source: { ...TRACC_SOURCE, period: 'niveau +2,7 °C (≈ 2050) ; référence 1976–2005' } };
+  const traj = trajectory(tracc, c.tracc_pt);
+  if (traj) {
+    const at = (ind, level) => ind.cells.find((x) => x.level === level);
+    return {
+      ...base,
+      trajectory: traj,
+      rows: traj.map((ind) => {
+        const ref = at(ind, 'REF');
+        const v = at(ind, 'GWL20');
+        return {
+          id: `futur_${ind.key}`,
+          label: ind.label,
+          text: Number.isFinite(v.q50) ? fmtFutur(v.q50, ind.unit, ind.decimals) : 'non disponible',
+          sub: Number.isFinite(ref.q50) ? `1976–2005 : ${cellText(ind, ref)}` : null,
+        };
+      }),
+      note: [pointNote(c), TRACC_LEVELS_NOTE, TRACC_CAVEAT].filter(Boolean).join(' '),
+    };
+  }
+  if (!hasFutur(c)) {
+    const why = c.tracc_pt === 0 ? 'aucun point de la grille climatique à moins de 8 km (île éloignée)' : 'non disponible dans ces données';
+    return { ...base, rows: [{ id: 'futur_tx35', label: 'Climat futur', text: why }], note: TRACC_CAVEAT };
+  }
+  return {
+    ...base,
+    rows: FUTUR.map((f) => ({ id: `futur_${f.key}`, label: f.label, text: Number.isFinite(c[f.col]) ? fmtFutur(c[f.col], f.unit, f.d) : 'non disponible', sub: 'à +2,7 °C' })),
+    note: [pointNote(c), TRACC_CAVEAT].filter(Boolean).join(' '),
   };
 }
 

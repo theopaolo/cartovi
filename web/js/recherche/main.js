@@ -5,6 +5,7 @@ import { h, prefersReducedMotion, rafThrottle } from '../dom.js';
 import { fmtDateTime, fmtNumber } from '../format.js';
 import { renderCompare } from './compare.js';
 import { loadContext, loadNames } from './data.js';
+import { loadTracc } from '../climat.js';
 import { createFiche } from './fiche.js';
 import { MAX_COMPARE, hashFor, parseHash, writeHash } from './hash.js';
 import { buildProfile } from './profile.js';
@@ -238,7 +239,26 @@ const scheduleRender = rafThrottle(render);
 function update() {
   scheduleSearch();
   for (const code of new Set([state.c, ...state.cmp])) if (code) ensure(code);
+  if (state.c || state.cmp.length) ensureTracc();
   scheduleRender();
+}
+
+// trajectoire du climat futur (grille TRACC, ≈ 1,4 Mo) : chargée une fois, à la première fiche ouverte ;
+// en attendant (ou en cas d'échec), la fiche affiche les valeurs à +2,7 °C de la couche communale
+let traccState = 'idle';
+function ensureTracc() {
+  if (traccState !== 'idle' || !ctx) return;
+  traccState = 'loading';
+  loadTracc()
+    .then((t) => {
+      ctx.tracc = t;
+      traccState = 'ok';
+    })
+    .catch((e) => {
+      traccState = 'error';
+      console.info(`climat futur : ${e.message}`);
+    })
+    .finally(scheduleRender);
 }
 
 function render() {

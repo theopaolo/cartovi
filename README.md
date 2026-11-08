@@ -61,7 +61,6 @@ web/                                   HTML + CSS + JS (modules ES), sans framew
 | Eau & climat | Jours de restriction d'eau sévère (alerte renforcée ou crise), moyenne 5 ans | VigiEau (MTE) | 7 j | ↓ |
 | | Cours d'eau sans écoulement ou à sec en été, % des observations sur 5 ans | ONDE / Hub'Eau (OFB) | 7 j | ↓ |
 | | Bilan hydrique climatique P − ETP, mm/an sur 5 ans, aux communes représentatives de la population | Open-Meteo (ERA5) | 30 j | ↑ |
-| | Jours ≥ 30 °C projetés en 2041–2050 | Open-Meteo (CMIP6 MRI-AGCM3-2-S) | 365 j | ↓ |
 | Foncier & densité | Prix médian des maisons, €/m² | Statistiques DVF (DGFiP / Etalab) | 6 j | ↓ |
 | | Densité de population | geo.api.gouv.fr (INSEE) | 28 j | ↓ |
 | Terres & nature | Consommation d'espaces naturels, agricoles et forestiers, ha/an pour 100 km² | Cerema (fichiers fonciers) | 6 j | ↓ |
@@ -69,9 +68,55 @@ web/                                   HTML + CSS + JS (modules ES), sans framew
 | | Part du territoire à moins de 20 km d'un site nucléaire (PPI) | liste statique ASNR / EDF / Orano + calcul géométrique | 6 j | ↓ |
 | | Arrêtés de catastrophe naturelle par commune sur 20 ans | GASPAR (Géorisques) | 7 j | ↓ |
 | | Sites et sols pollués (instructions) pour 1 000 km² | Géorisques (SSP) | 28 j | ↓ |
+| Climat futur (+2,7 °C, ≈ 2050) | Jours à 35 °C ou plus par an | DRIAS, TRACC-2023 (Météo-France) | statique | ↓ |
+| | Nuits tropicales (minimale > 20 °C) par an | DRIAS, TRACC-2023 | statique | ↓ |
+| | Jours de sol sec (indice d'humidité SWI < 0,4) par an | DRIAS, TRACC-2023 | statique | ↓ |
+| | Jours de danger météorologique de feu (IFM > 40) par an | DRIAS, TRACC-2023 | statique | ↓ |
+| | Pluie maximale en un jour, mm (moyenne des maxima annuels) | DRIAS, TRACC-2023 | statique | ↓ |
 
 Chaque indicateur est décrit en détail, limites comprises, dans son module
 (`pipeline/sources/`) et dans la section « Méthode & sources » du site.
+
+### Climat futur : la TRACC de Météo-France (DRIAS)
+
+La trajectoire de réchauffement de référence pour l'adaptation (TRACC) est le cadre
+officiel français depuis 2023. Elle raisonne en niveaux de réchauffement plutôt qu'en
+scénarios d'émissions : par rapport à 1976–2005, +2 °C en France vers 2030, +2,7 °C vers
+2050, +4 °C vers 2100. DRIAS publie pour chaque niveau des indicateurs sur la grille
+SAFRAN de 8 km, calculés sur l'ensemble de simulations régionales corrigées
+d'Explore2-Climat.
+
+- **Obtention.** Les fichiers ne s'obtiennent qu'avec un compte DRIAS, par formulaire.
+  Ils sont donc extraits une fois et versionnés tels quels dans
+  `data/raw/drias/tracc2023/` (voir son `LISEZMOI.md`). Le pipeline les lit sans réseau.
+  L'empreinte des fichiers sert de version de méthode : une nouvelle extraction (ou
+  l'ajout des quantiles Q05 et Q95) relance le calcul au passage suivant du CI.
+- **Rattachement.** Une commune prend la valeur du point de grille le plus proche de son
+  centre (3 km en médiane, 7,5 km au plus). Au-delà de 8 km, aucun point ne la
+  représente : Ouessant et l'île de Sein retombent sur la valeur du département. Un
+  département prend la moyenne de ses communes pondérée par la population, soit
+  l'exposition de l'habitant moyen et non celle de la surface (les sommets inhabités ne
+  refroidissent pas les Bouches-du-Rhône).
+- **Niveau retenu pour le score : +2,7 °C**, celui sur lequel la TRACC demande aux
+  territoires de s'adapter d'ici 2050. La fiche d'une commune montre les quatre niveaux.
+  Un horizon « dans 10 ou 20 ans » tombe entre +2 °C et +2,7 °C : on n'interpole pas,
+  ce serait inventer une valeur qu'aucune simulation n'a calculée.
+- **Valeurs absolues, pas des écarts.** Pour choisir où vivre, compte le climat que l'on
+  y vivra (8 jours à 35 °C à Lyon à +2,7 °C), pas seulement son évolution. La fiche
+  donne la référence 1976–2005 à côté, pour lire le changement.
+- **Poids par défaut.** Jours à 35 °C et sols secs 1 ; nuits tropicales 0,5 (très
+  corrélées aux jours chauds : un poids plein compterait deux fois la chaleur) ; danger
+  météo de feu 0,5 (un danger météorologique, pas la présence de forêt) ; pluie
+  maximale 0,5 (un aléa, pas une zone inondable : CatNat et PPR mesurent le risque
+  réalisé). Les jours à 30 °C et les pluies d'été sont affichés, pas notés : ils
+  redoublent la chaleur et la sécheresse des sols.
+- **Limites.** Seule la médiane de l'ensemble (Q50) est extraite pour l'instant :
+  l'intervalle entre simulations (Q05–Q95) s'affichera dès que ses fichiers seront
+  ajoutés. La maille de 8 km lisse le relief (un fond de vallée est plus chaud que sa
+  maille) et ignore les îlots de chaleur urbains. C'est une projection d'ensemble, pas
+  une prévision.
+
+Mention obligatoire : « DRIAS, données Météo-France ».
 
 ## Couche communale : chercher une commune
 
@@ -135,14 +180,13 @@ change d'un mode à l'autre est en soi une information.
 
 ### Pistes non encore intégrées (et pourquoi)
 
-- **Projections climatiques officielles par commune (TRACC, +2 °C en 2030, +2,7 °C en
-  2050)** : les indicateurs DRIAS et Climadiag Commune de Météo-France ne sont pas
-  publiés en table communale ouverte. Il faut un compte DRIAS et des fichiers NetCDF.
-  Le jeu de l'ADEME à +2,7 °C ne couvre que 8 zones climatiques du bâtiment. Le
-  climat futur reste donc l'approximation Open-Meteo (un seul modèle), affichée comme
-  telle.
-- **Débits futurs (Explore2)** : tables par commune publiées en 2026 mais marquées
-  « test » par leur producteur, environ 150 Mo par indicateur.
+- **Débits futurs (Explore2 au format TRACC)** : tables par commune publiées en 2026
+  par le réseau des agences régionales de l'environnement (RARE), en Licence Ouverte,
+  avec min, q05, q50, q95 et max entre simulations (étiage d'été VCN10, durée des
+  étiages, crues). Mais leur producteur les marque « attention test », et elles portent
+  encore des défauts visibles : le débit de crue y est décrit comme « mois du minimum
+  des débits », et un niveau +2 °C figure dans les données sans figurer dans la fiche de
+  méthode. Environ 150 Mo par indicateur.
 - **Îlots de chaleur (LCZ du Cerema)** : 88 archives de 100 à 200 Mo à intersecter.
   C'est un calcul à faire une fois, hors ligne.
 - **Zones inondables chiffrées (EAIP) et exposition aux argiles** : uniquement des
@@ -159,11 +203,10 @@ retrouve une commune par son nom, et affiche ses valeurs dans toutes les catégo
 projet :
 
 - **commune** : train direct vers les villes de référence, climat politique, culture à
-  15 km, prix des maisons ;
+  15 km, prix des maisons, terres, risques par aléa, et climat futur (les sept
+  indicateurs TRACC du point de grille, de la référence 1976–2005 à +4 °C) ;
 - **département** : les indicateurs de la carte principale, avec le rang centile et la
-  classe du département. Ce sont des valeurs départementales, signalées comme telles ;
-- **flux** : vent moyen et maximal de la semaine au point de la commune, et la distance
-  à la donnée réelle la plus proche.
+  classe du département. Ce sont des valeurs départementales, signalées comme telles.
 
 La recherche ignore les accents, la casse et la ponctuation, et accepte « st » pour
 « saint ». Un code de département (« saint martin 38 ») ou un code INSEE restreint les
@@ -263,13 +306,12 @@ autre modification.
 - **DVF** ne couvre pas l'Alsace-Moselle (livre foncier) : prix absent pour 57, 67 et 68.
 - **Géorisques** a filtré par moments des IP étrangères, dont celles des runners
   GitHub. En cas de blocage, les valeurs précédentes restent affichées comme périmées.
-- **Climat futur** : un seul modèle, au forçage d'émissions élevées. C'est un ordre de
-  grandeur comparatif, pas une prévision.
+- **Climat futur** : médiane d'un ensemble de simulations (TRACC), sur une maille de
+  8 km ; voir « Climat futur » plus haut.
 - **Open-Meteo** : son quota est partagé par IP, et les runners GitHub partagent leurs IP.
-  Une collecte coûte environ un quota horaire. Une seule des deux sources climat est donc
-  collectée par exécution, l'autre est reportée à la suivante. Le climat est échantillonné
-  en deux communes par département (celles des 1er et 3e quartiles de population), pas
-  sur tout le territoire.
+  Une collecte coûte environ un quota horaire : une seule source Open-Meteo est collectée
+  par exécution. Le climat récent est échantillonné en deux communes par département
+  (celles des 1er et 3e quartiles de population), pas sur tout le territoire.
 - Les points d'accès VigiEau (`/api/data/departement`) et Géorisques v1 ne sont pas
   versionnés comme des API stables. Un changement de format est détecté (rejet), mais
   pas corrigé automatiquement.
@@ -279,6 +321,7 @@ autre modification.
 ## Licences et attributions
 
 Code : pas encore de licence (à choisir). Données : Licence Ouverte 2.0 (Etalab) pour les sources publiques françaises,
-CC BY 4.0 pour Open-Meteo (« Weather data by Open-Meteo.com », ERA5 / Copernicus, CMIP6).
+CC BY 4.0 pour Open-Meteo (« Weather data by Open-Meteo.com », ERA5 / Copernicus).
+Climat futur : « DRIAS, données Météo-France » (TRACC-2023, ensemble Explore2-Climat).
 Contours : IGN Admin Express COG 2018 simplifié, via
 [gregoiredavid/france-geojson](https://github.com/gregoiredavid/france-geojson).

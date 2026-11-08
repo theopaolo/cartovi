@@ -1,4 +1,5 @@
 // fiche.js — fiche d'une commune : les sections du profil (profile.js), chacune avec unité, période et source.
+import { SCORED_LEVEL, cellText } from '../climat.js';
 import { h } from '../dom.js';
 import { NBSP, fmtNumber } from '../format.js';
 import { staleBadge } from '../panel.js';
@@ -80,6 +81,8 @@ function section(s) {
     out.append(...s.rows.map(share), h('p', { class: 'muted small' }, s.reference));
   } else if (s.id === 'risques') {
     out.append(...riskNodes(s.reading));
+  } else if (s.id === 'futur' && s.trajectory) {
+    out.append(trajectoryTable(s.trajectory));
   } else {
     out.append(rows(s.rows));
   }
@@ -94,6 +97,42 @@ function section(s) {
   if (s.source) out.append(meta(s.source.period, s.source, s.source.licence));
   for (const src of s.sources || []) out.append(meta(src.period, src));
   return out;
+}
+
+/** Climat futur : un indicateur par ligne, un niveau de réchauffement par colonne (celui du score mis en avant). */
+function trajectoryTable(traj) {
+  const levels = traj[0].cells;
+  return h(
+    'div',
+    { class: 'table-wrap' },
+    h(
+      'table',
+      { class: 'rank-table traj-table' },
+      h('caption', { class: 'sr-only' }, 'Climat futur au point de grille de la commune, par niveau de réchauffement'),
+      h(
+        'thead',
+        {},
+        h(
+          'tr',
+          {},
+          h('th', { scope: 'col' }, 'Indicateur'),
+          levels.map((l) => h('th', { scope: 'col', class: `c-val${l.level === SCORED_LEVEL ? ' cur' : ''}` }, l.label, h('span', { class: 'sub' }, l.horizon))),
+        ),
+      ),
+      h(
+        'tbody',
+        {},
+        traj.map((ind) =>
+          h(
+            'tr',
+            {},
+            h('th', { scope: 'row' }, ind.label, h('span', { class: 'sub' }, ind.unit)),
+            ind.cells.map((cell) => h('td', { class: `c-val${cell.level === SCORED_LEVEL ? ' cur' : ''}` }, cellText(ind, cell))),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /** Part de gauche : valeur, barre neutre (gris, pas de bon ni de mauvais) et repère de la référence nationale. */

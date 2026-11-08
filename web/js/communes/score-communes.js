@@ -9,6 +9,7 @@
 import { DEFAULT_NORM, composite, rank, scorerOf } from '../score.js';
 import { NBSP, fmtNumber, fmtValue } from '../format.js';
 import { fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from './text.js';
+import { FUTUR, fmtFutur } from '../climat.js';
 
 export const NUC_CAP_KM = 40; // au-delà de deux fois le rayon PPI (20 km), la distance ne compte plus : ex æquo à 40
 export const W_MAX = 3;
@@ -22,6 +23,7 @@ export const GROUPS = [
   { id: 'terres', label: 'Terres' },
   { id: 'risques', label: 'Risques' },
   { id: 'eau', label: 'Eau et climat' },
+  { id: 'futur', label: 'Climat futur (+2,7 °C, ≈ 2050)' },
 ];
 
 const fmtRecognitions = (v) => `${fmtNumber(v)}${NBSP}reconnaissance${v > 1 ? 's' : ''}`;
@@ -88,7 +90,17 @@ export const CRITERIA = [
   { id: 'eau', group: 'eau', label: 'Restrictions d’eau', w: 1.5, dir: -1, dep: 'secheresse_jours' },
   { id: 'ass', group: 'eau', label: 'Cours d’eau à sec', w: 1, dir: -1, dep: 'assecs' },
   { id: 'bil', group: 'eau', label: 'Bilan hydrique', w: 1, dir: 1, dep: 'bilan_hydrique' },
-  { id: 'chd', group: 'eau', label: 'Jours chauds en 2050', w: 1, dir: -1, dep: 'jours_chauds_2050' },
+  // climat futur TRACC (DRIAS) : valeur du point de grille de la commune, sinon celle du département (même unité)
+  ...[
+    ['f35', 'tx35_27', 1],
+    ['ftr', 'tr_27', 0.5],
+    ['fso', 'swi04_27', 1],
+    ['ffe', 'ifm40_27', 0.5],
+    ['fpl', 'rx1d_27', 0.5],
+  ].map(([id, col, w]) => {
+    const f = FUTUR.find((x) => x.col === col);
+    return { id, group: 'futur', label: f.label, w, dir: -1, col, dep: col, fallback: 'cell', fmt: (v) => fmtFutur(v, f.unit, f.d) };
+  }),
 ];
 
 export const CRITERION = Object.fromEntries(CRITERIA.map((k) => [k.id, k]));

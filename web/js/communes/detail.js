@@ -6,9 +6,10 @@ import { RISK_CAVEAT, riskReading } from './risks.js';
 import { riskNodes } from './risks-view.js';
 import { fmtCriterion } from './score-communes.js';
 import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from './text.js';
+import { FUTUR, TRACC_CAVEAT, fmtFutur, hasFutur, pointNote } from '../climat.js';
 
 // indicateurs départementaux rappelés (ceux qui manquent sont simplement omis)
-const DEP_INDICATORS = ['secheresse_jours', 'jours_chauds_2050', 'catnat'];
+const DEP_INDICATORS = ['secheresse_jours', 'catnat'];
 
 const row = (label, value, note) => [h('dt', {}, label), h('dd', {}, value, note ? h('span', { class: 'sub' }, note) : null)];
 const bar = (v) => h('div', { class: 'bar', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.max(0, Math.min(100, v))}%` }));
@@ -52,6 +53,7 @@ export function createDetail(root, { index, onClose }) {
             : h('p', { class: 'muted' }, 'Non disponible : moins de 10 ventes de maisons.'),
         ),
         risks(c),
+        futur(c),
         department(c, dep, payload),
         h('p', {}, h('a', { href: `recherche.html#c=${encodeURIComponent(c.code)}` }, 'Fiche complète')),
       );
@@ -172,6 +174,19 @@ function risks(c) {
     h('h3', {}, 'Risques — valeurs de la commune'),
     ...riskNodes(riskReading(c)),
     h('p', { class: 'muted small' }, RISK_CAVEAT, ' Sources : GASPAR (Géorisques), liste officielle du trait de côte.'),
+  );
+}
+
+/** Climat futur à +2,7 °C (TRACC) au point de grille de la commune ; la trajectoire complète est dans la fiche Recherche. */
+function futur(c) {
+  return h(
+    'section',
+    {},
+    h('h3', {}, 'Climat futur — +2,7\u00a0°C, vers 2050'),
+    hasFutur(c)
+      ? h('dl', { class: 'kv' }, ...FUTUR.filter((f) => Number.isFinite(c[f.col])).flatMap((f) => row(f.label, fmtFutur(c[f.col], f.unit, f.d))))
+      : h('p', { class: 'muted' }, c.tracc_pt === 0 ? 'Aucun point de la grille climatique à moins de 8\u00a0km (île éloignée) : le score utilise la valeur du département.' : 'Non disponible dans ces données.'),
+    h('p', { class: 'muted small' }, [pointNote(c), TRACC_CAVEAT, 'Source : DRIAS, données Météo-France.'].filter(Boolean).join(' ')),
   );
 }
 

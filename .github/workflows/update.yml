@@ -15,6 +15,7 @@ on:
     paths:
       - "pipeline/**"
       - "web/**"
+      - "data/raw/**"
       - ".github/workflows/update.yml"
 
 concurrency:
