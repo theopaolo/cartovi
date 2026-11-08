@@ -65,7 +65,7 @@ Note de passation entre sessions de travail (à lire en premier par une nouvelle
   8/11/2026 : la page du jeu ne porte plus la mention, les fichiers (6–9 février) si, avec
   leurs erreurs d'étiquetage. Si les fichiers sont republiés sans la mention, la fiche le
   signale : reposer alors la question du score à l'utilisateur.
-- **Reste de l'étape 2** : LCZ Cerema (îlots de chaleur), EAIP/argiles (polygones).
+- **Reste de l'étape 2** : EAIP/argiles (polygones). Les LCZ sont faites (voir plus bas).
 
 ## Vie locale et position des communes (8 novembre 2026, soir)
 
@@ -81,6 +81,24 @@ Note de passation entre sessions de travail (à lire en premier par une nouvelle
 - Analyse demandée par l'utilisateur (communes à ≤ 2 h de Lyon ou d'Aix, vie sans voiture,
   ESS, culture de ville moyenne, climat vivable) : script de travail dans le dossier de
   session, résultats donnés dans la conversation.
+
+## Chaleur, santé, prix des appartements (9 novembre 2026)
+
+Demandé par l'utilisateur après l'analyse « climat futur doux d'abord, ville bien équipée,
+toutes tailles » :
+- **Jours à 30 °C ou plus** (TRACC `tx30_27`) notés, poids 1 ; jours à 35 °C ramenés à 0,5
+  (comptés aussi parmi les 30 °C). Motif : Grenoble a autant de jours à 30 °C que Lyon.
+- **Îlots de chaleur** (`pipeline/chaleur.py`) : LCZ du Cerema, 88 aires urbaines ; à 1 km de
+  la mairie, sol minéralisé, arbres, tissu compact (LCZ 1–3), classe de la mairie. Shapefiles
+  lus en flux par requêtes Range (≈ 3,5 Go), recalcul seulement si le Cerema republie. La
+  « sensibilité » du Cerema n'est pas utilisée (« aucune valeur scientifique » selon son guide).
+  Critères à 0 par défaut : couverture partielle.
+- **Santé** (`pipeline/sante.py`, à chaque génération communale) : APL DREES généralistes ≤ 65
+  ans (poids 1) et sages-femmes (0,5), maternité la plus proche à vol d'oiseau (0,5, ex æquo
+  sous 10 km) via la liste DREES et FINESS géolocalisé. Lecteur xlsx stdlib (`pipeline/xlsx.py`).
+  Manquent : pédiatres, urgences, temps de route.
+- **Prix des appartements** (DVF) à côté des maisons ; critère `pra` à 0 par défaut.
+- Couche communale **version 11**.
 
 ## Prochaines étapes demandées
 
