@@ -1,4 +1,5 @@
-https://data.ademe.fr/data-fair/api/v1/datasets/donnees-climatiques-prospectives-france-27c-vague-de-chaleur/raw	sh head -c 1500 /tmp/r; echo; wc -l /tmp/r; cut -d, -f1 /tmp/r | head -3
-https://data.ademe.fr/data-fair/api/v1/datasets?q=donnees%20climatiques%20prospectives&size=40&select=id,title,count	[.results[] | {id, title, count}]
-https://data.ademe.fr/data-fair/api/v1/datasets/donnees-climatiques-prospectives-france-27c-vague-de-chaleur	{title, count, description: (.description[0:1500]), schema: [.schema[] | {key, title, type}]}
-https://static.data.gouv.fr/resources/liste-des-communes-volontaires-pour-sadapter-au-recul-du-trait-de-cote/20260218-105039/trait-de-cote-commune-2026-95.csv	sh head -c 800 /tmp/r; echo; wc -l /tmp/r
+# Étape 2 : où sont les indicateurs TRACC (public ou derrière compte) ?
+https://climatedata.cnrm-game-meteo.fr/public/dcsc/projects/DRIAS/	sh python3 .github/probe.py 7
+https://www.drias-climat.fr/document/Liste_indicateurs_TRACC_2023-11-30.pdf	sh pip -q install pypdf >/dev/null 2>&1; python3 -c "import pypdf;r=pypdf.PdfReader('/tmp/r');print('\n'.join(p.extract_text() for p in r.pages))"
+https://www.data.gouv.fr/api/1/datasets/?q=TRACC&page_size=40	[.data[] | {title, id, org: .organization.name, res: [.resources[] | {title, format, filesize}][0:6]}]
+https://www.data.gouv.fr/api/1/datasets/?q=Explore2&page_size=40	[.data[] | {title, id, org: .organization.name, res: [.resources[] | {title, format, filesize}][0:6]}]

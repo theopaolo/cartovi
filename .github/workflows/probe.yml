@@ -16,8 +16,8 @@ jobs:
             [ -z "$u" ] && continue
             echo "=================== $u"
             curl -sSL --max-time 300 -A "carteplan-probe" -o /tmp/r -w "HTTP %{http_code} | %{content_type} | %{size_download} octets\n" "$u" || true
-            if [ "${q#sh }" != "$q" ]; then (eval "${q#sh }") | head -c 9000
-            elif [ -n "$q" ]; then jq -c "$q" /tmp/r | head -c 9000
+            if [ "${q#sh }" != "$q" ]; then (eval "${q#sh }") | head -c 60000
+            elif [ -n "$q" ]; then jq -c "$q" /tmp/r | head -c 60000
             else head -c 2500 /tmp/r; fi
             echo
           done

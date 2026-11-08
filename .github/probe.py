@@ -1,18 +1,35 @@
-import zipfile, csv, io, collections
-z = zipfile.ZipFile("/tmp/r"); names = z.namelist(); print(names)
-def rows(pat):
-    n = [x for x in names if pat in x][0]
-    t = z.read(n).decode("utf-8-sig", "replace")
-    return list(csv.DictReader(io.StringIO(t), delimiter=";"))
-c = rows("catnat_gaspar"); k = [f for f in c[0] if "lib_risque" in f][0]
-print("CATNAT", list(c[0].keys()))
-print(collections.Counter(r[k] for r in c).most_common(40))
-d = rows("ddrm_risq"); print("DDRM", list(d[0].keys())); print(d[0]); print(d[1])
-kk = [f for f in d[0] if "risq" in f.lower()]
-for f in kk: print(f, collections.Counter(r[f] for r in d).most_common(45))
-p = rows("pprn_gaspar"); print("PPRN", list(p[0].keys())); print(p[0])
-kl = [f for f in p[0] if "risque" in f.lower()]
-for f in kl: print(f, collections.Counter(x.strip() for r in p for x in (r[f] or "").split(",")).most_common(30))
-etat = [f for f in p[0] if "etat" in f.lower() or "dat_" in f.lower() or "date" in f.lower()]
-print("PPRN dates/états", etat, [ (f, collections.Counter(bool(r[f]) for r in p)) for f in etat ])
-t = rows("tim_gaspar"); print("TIM", list(t[0].keys())); print(t[0])
+# Sonde : arborescence du serveur public Météo-France (DRIAS) — sans authentification ?
+import re, sys, time, urllib.request, html
+ROOT = "https://climatedata.cnrm-game-meteo.fr/public/dcsc/projects/DRIAS/"
+ROW = re.compile(r'href="([^"?/][^"]*)".*?(\d{4}-\d\d-\d\d \d\d:\d\d|\d\d-\w{3}-\d{4} \d\d:\d\d)?\s*(?:</td><td[^>]*>)?\s*([\d.]+[KMG]?|-)?\s*<', re.S)
+seen, budget = set(), [450]
+def ls(url):
+    budget[0] -= 1
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "carteplan-probe"}), timeout=60) as r:
+        t = r.read().decode("utf-8", "replace")
+    dirs, files = [], []
+    for line in t.splitlines():
+        m = re.search(r'href="([^"?/][^"]*)"', line)
+        if not m or m.group(1).startswith(("http", "#", "..")):
+            continue
+        name = html.unescape(m.group(1))
+        size = re.findall(r'>\s*([\d.]+[KMG]?)\s*<', line)
+        date = re.findall(r'(\d{4}-\d\d-\d\d \d\d:\d\d|\d\d-\w{3}-\d{4} \d\d:\d\d)', line)
+        (dirs if name.endswith("/") else files).append((name, size[-1] if size else "?", date[0] if date else ""))
+    return dirs, files
+def walk(url, depth):
+    if url in seen or budget[0] <= 0: return
+    seen.add(url)
+    try: dirs, files = ls(url)
+    except Exception as e: print("ERR", url[len(ROOT):], e); return
+    rel = url[len(ROOT):] or "/"
+    ex = ", ".join(f"{n} [{s} {d}]" for n, s, d in files[:4])
+    print(f"{rel}  dirs={len(dirs)} files={len(files)}  {ex}")
+    if depth == 0: return
+    for n, _, _ in dirs:
+        # on n'ouvre pas les centaines de sous-dossiers par modèle : 6 premiers seulement
+        walk(url + n, depth - 1) if len(dirs) < 25 or "TRACC" in n.upper() else None
+    if len(dirs) >= 25:
+        print(f"   … {len(dirs)} sous-dossiers : {', '.join(n for n,_,_ in dirs[:25])}")
+walk(ROOT, int(sys.argv[1]) if len(sys.argv) > 1 else 6)
+print("requêtes restantes", budget[0])
