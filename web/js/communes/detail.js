@@ -8,6 +8,7 @@ import { fmtCriterion } from './score-communes.js';
 import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from './text.js';
 import { FUTUR, TRACC_CAVEAT, fmtFutur, hasFutur, pointNote } from '../climat.js';
 import { hasVie, vieRows } from '../vielocale.js';
+import { chaleurRows, hasChaleur, hasSante, santeRows } from '../sante.js';
 
 // indicateurs départementaux rappelés (ceux qui manquent sont simplement omis)
 const DEP_INDICATORS = ['secheresse_jours', 'catnat'];
@@ -48,14 +49,16 @@ export function createDetail(root, { index, onClose }) {
         h(
           'section',
           {},
-          h('h3', {}, 'Prix des maisons'),
-          c.prix != null
-            ? h('p', {}, h('strong', {}, fmtPrice(c.prix)), h('span', { class: 'muted small' }, ' · médiane DVF sur environ 5 ans'))
-            : h('p', { class: 'muted' }, 'Non disponible : moins de 10 ventes de maisons.'),
+          h('h3', {}, 'Prix au m²'),
+          h('p', {}, 'Maisons : ', c.prix != null ? h('strong', {}, fmtPrice(c.prix)) : h('span', { class: 'muted' }, 'moins de 10 ventes')),
+          h('p', {}, 'Appartements : ', c.prix_appart != null ? h('strong', {}, fmtPrice(c.prix_appart)) : h('span', { class: 'muted' }, 'moins de 10 ventes')),
+          h('p', { class: 'muted small' }, 'Médianes DVF sur environ 5 ans.'),
         ),
         risks(c),
         futur(c),
         vie(c, R),
+        sante(c),
+        chaleur(c),
         department(c, dep, payload),
         h('p', {}, h('a', { href: `recherche.html#c=${encodeURIComponent(c.code)}` }, 'Fiche complète')),
       );
@@ -188,6 +191,30 @@ function vie(c, R) {
     h('h3', {}, 'Vie locale et mobilité'),
     h('dl', { class: 'kv' }, ...vieRows(c, R).flatMap((r) => row(r.label, r.text, r.sub))),
     h('p', { class: 'muted small' }, 'Sources : SIRENE, répertoire des associations, recensement 2023, annuaire de l’éducation, France Tiers-Lieux, Panorama des festivals. Détail et limites dans la fiche complète.'),
+  );
+}
+
+/** Accès aux soins : APL de la DREES, maternité la plus proche. */
+function sante(c) {
+  if (!hasSante(c)) return null;
+  return h(
+    'section',
+    {},
+    h('h3', {}, 'Accès aux soins'),
+    h('dl', { class: 'kv' }, ...santeRows(c).flatMap((r) => row(r.label, r.text, r.sub))),
+    h('p', { class: 'muted small' }, 'Sources : DREES (APL, liste des maternités), FINESS géolocalisé. Détail et limites dans la fiche complète.'),
+  );
+}
+
+/** Îlot de chaleur : tissu urbain à 1 km de la mairie (LCZ du Cerema), dans les aires urbaines cartographiées. */
+function chaleur(c) {
+  if (!hasChaleur(c)) return null;
+  return h(
+    'section',
+    {},
+    h('h3', {}, 'Îlot de chaleur (centre)'),
+    h('dl', { class: 'kv' }, ...chaleurRows(c).flatMap((r) => row(r.label, r.text, r.sub))),
+    h('p', { class: 'muted small' }, 'Source : zones climatiques locales du Cerema (2022). Mesures du tissu urbain, pas une température.'),
   );
 }
 

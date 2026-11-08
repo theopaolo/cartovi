@@ -11,6 +11,7 @@ export const SCORED_LEVEL = 'GWL20';
 
 /** Colonnes communales notées (+2,7 °C) ; mêmes identifiants que les indicateurs du département. */
 export const FUTUR = [
+  { col: 'tx30_27', key: 'tx30', label: 'Jours à 30 °C ou plus', unit: 'jours/an', d: 1 },
   { col: 'tx35_27', key: 'tx35', label: 'Jours à 35 °C ou plus', unit: 'jours/an', d: 1 },
   { col: 'tr_27', key: 'tr', label: 'Nuits tropicales', unit: 'nuits/an', d: 1 },
   { col: 'swi04_27', key: 'swi04', label: 'Jours de sol sec', unit: 'jours/an', d: 0 },

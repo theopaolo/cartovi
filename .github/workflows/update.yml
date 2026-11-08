@@ -28,7 +28,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,6 +47,11 @@ jobs:
         # ~4 Go de fichiers SIRENE lus en flux, une fois par mois ; la couche communale lit son résultat
         continue-on-error: true
         run: python -m pipeline.locale
+
+      - name: Îlots de chaleur (LCZ du Cerema)
+        # ~3,5 Go de shapefiles lus en flux, seulement si les archives publiées changent ; la couche communale lit son résultat
+        continue-on-error: true
+        run: python -m pipeline.chaleur
 
       - name: Couche communale (mensuelle)
         # indépendante : son échec ne bloque pas la publication des indicateurs départementaux

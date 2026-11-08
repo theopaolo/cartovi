@@ -110,6 +110,7 @@ export const SORTS = {
   gauche: { label: 'Part de gauche', first: -1, val: (r) => r.left },
   culture: { label: 'Offre culturelle', first: -1, val: (r) => r.c.cult },
   prix: { label: 'Prix des maisons', first: 1, val: (r) => r.c.prix },
+  prix_appart: { label: 'Prix des appartements', first: 1, val: (r) => r.c.prix_appart },
 };
 
 /** Tri en place. Départage toujours par temps de trajet, puis nombre de trains (décroissant), puis nom. */

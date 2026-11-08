@@ -68,7 +68,8 @@ web/                                   HTML + CSS + JS (modules ES), sans framew
 | | Part du territoire à moins de 20 km d'un site nucléaire (PPI) | liste statique ASNR / EDF / Orano + calcul géométrique | 6 j | ↓ |
 | | Arrêtés de catastrophe naturelle par commune sur 20 ans | GASPAR (Géorisques) | 7 j | ↓ |
 | | Sites et sols pollués (instructions) pour 1 000 km² | Géorisques (SSP) | 28 j | ↓ |
-| Climat futur (+2,7 °C, ≈ 2050) | Jours à 35 °C ou plus par an | DRIAS, TRACC-2023 (Météo-France) | statique | ↓ |
+| Climat futur (+2,7 °C, ≈ 2050) | Jours à 30 °C ou plus par an | DRIAS, TRACC-2023 (Météo-France) | statique | ↓ |
+| | Jours à 35 °C ou plus par an | DRIAS, TRACC-2023 | statique | ↓ |
 | | Nuits tropicales (minimale > 20 °C) par an | DRIAS, TRACC-2023 | statique | ↓ |
 | | Jours de sol sec (indice d'humidité SWI < 0,4) par an | DRIAS, TRACC-2023 | statique | ↓ |
 | | Jours de danger météorologique de feu (IFM > 40) par an | DRIAS, TRACC-2023 | statique | ↓ |
@@ -104,12 +105,16 @@ d'Explore2-Climat.
 - **Valeurs absolues, pas des écarts.** Pour choisir où vivre, compte le climat que l'on
   y vivra (8 jours à 35 °C à Lyon à +2,7 °C), pas seulement son évolution. La fiche
   donne la référence 1976–2005 à côté, pour lire le changement.
-- **Poids par défaut.** Jours à 35 °C et sols secs 1 ; nuits tropicales 0,5 (très
-  corrélées aux jours chauds : un poids plein compterait deux fois la chaleur) ; danger
+- **Poids par défaut.** Jours à 30 °C et sols secs 1 ; jours à 35 °C 0,5 (ils sont aussi
+  comptés parmi les jours à 30 °C : les canicules pèsent en plus, sans compter deux fois
+  la chaleur ordinaire) ; nuits tropicales 0,5 (très corrélées aux jours chauds) ; danger
   météo de feu 0,5 (un danger météorologique, pas la présence de forêt) ; pluie
   maximale 0,5 (un aléa, pas une zone inondable : CatNat et PPR mesurent le risque
-  réalisé). Les jours à 30 °C et les pluies d'été sont affichés, pas notés : ils
-  redoublent la chaleur et la sécheresse des sols.
+  réalisé). Les pluies d'été sont affichées, pas notées : elles redoublent la
+  sécheresse des sols. Les jours à 30 °C sont notés depuis novembre 2026 : à Grenoble
+  ils sont aussi nombreux qu'à Lyon (36 par an), quand les jours à 35 °C la plaçaient
+  bien plus au frais (5 contre 8). La chaleur ordinaire de l'été, celle qui pèse sur
+  l'école et le sommeil, échappait au score.
 - **Limites.** Seule la médiane de l'ensemble (Q50) est extraite pour l'instant :
   l'intervalle entre simulations (Q05–Q95) s'affichera dès que ses fichiers seront
   ajoutés. La maille de 8 km lisse le relief (un fond de vallée est plus chaud que sa
@@ -165,7 +170,7 @@ critères y sont des **filtres réglables**, pas un score.
 | Train vers une ville | trajet **direct** le plus court et nombre de trains directs, un mardi ou jeudi type, vers chaque commune de ≥ 50 000 habitants (gares à moins de 5 km de sa mairie) ; gare choisie dans un rayon de 6 km, chaque km d'accès coûtant 3 min | GTFS national SNCF (TER, Intercités, TGV ; cars exclus) |
 | Climat politique | part des voix des listes de gauche (LFI, PS-Place publique, Écologistes, PCF, extrême et divers gauche) aux européennes 2024, dans la commune et dans un rayon de 10 km | ministère de l'Intérieur |
 | Offre culturelle | cinémas, scènes, lieux labellisés (scène nationale, SMAC, CDN…), musées, librairies, conservatoires à moins de 15 km | Basilic, ministère de la Culture |
-| Prix | médiane du prix au m² des maisons (≥ 10 ventes ; Paris, Lyon, Marseille agrégés depuis leurs arrondissements) | Statistiques DVF |
+| Prix | médiane du prix au m² des maisons et, à part, des appartements (≥ 10 ventes ; Paris, Lyon, Marseille agrégés depuis leurs arrondissements) | Statistiques DVF |
 
 Limites : pas de correspondances (un trajet avec changement n'apparaît pas) ; cars
 TER ignorés ; les européennes (51 % de participation) décrivent un électorat, pas une
@@ -218,8 +223,6 @@ change d'un mode à l'autre est en soi une information.
 
 - **Débits futurs dans le score** : affichés dans la fiche (voir plus haut), mais exclus
   du score tant que les fichiers portent la mention « test ».
-- **Îlots de chaleur (LCZ du Cerema)** : 88 archives de 100 à 200 Mo à intersecter.
-  C'est un calcul à faire une fois, hors ligne.
 - **Zones inondables chiffrées (EAIP) et exposition aux argiles** : uniquement des
   polygones, sans table communale nationale.
 - **Axe « bien-être présent »** façon IBV : faisable à la commune avec des sources
@@ -249,6 +252,59 @@ politique. Limites : ce sont des comptes de structures, pas leur taille ni leur 
 SAS n'a pas de catégorie juridique propre et n'est comptée que dans l'ESS ; la part des
 ménages sans voiture dit aussi la pauvreté ; le Panorama des festivals n'a pas été mis à jour
 depuis 2019. Les arrondissements de Paris, Lyon et Marseille sont rattachés à leur commune.
+
+## Accès aux soins
+
+Calculé à chaque génération de la couche communale (`pipeline/sante.py`) :
+
+| Critère | Mesure | Source | Poids par défaut |
+|---|---|---|---|
+| Médecins généralistes | accessibilité potentielle localisée (APL) aux généralistes de 65 ans ou moins, en consultations accessibles par an et par habitant | DREES, dernier millésime (2024 en 2026) | 1 |
+| Sages-femmes | APL aux sages-femmes, en ETP pour 100 000 femmes | DREES | 0,5 |
+| Maternité | distance à vol d'oiseau de la mairie à la maternité la plus proche, et son type (1, 2a, 2b, 3) ; ex æquo en deçà de 10 km | DREES, liste des maternités au 31 décembre ; FINESS géolocalisé | 0,5 |
+
+- **Pourquoi l'APL plutôt qu'un nombre de médecins.** Un compte par commune ignore les
+  médecins du bourg voisin et le temps qu'ils consacrent aux patients. L'APL, l'indicateur
+  de référence de la DREES, compte l'activité réelle des praticiens accessibles en voiture,
+  rapportée aux besoins des habitants selon leur âge. On ne l'agrège donc pas dans un rayon :
+  il le fait déjà.
+- **Pourquoi les généralistes de 65 ans ou moins.** Les plus âgés partiront dans les années
+  qui viennent ; pour s'installer, c'est l'offre durable qui compte. La DREES publie les deux.
+- **Pourquoi des poids non nuls.** Contrairement à la vie locale, l'accès aux soins n'est pas
+  une préférence : plus est mieux pour tout le monde.
+- **Limites.** La distance à la maternité n'est pas un temps de route (en montagne, l'écart
+  est grand). Ni pédiatres ni urgences : la DREES ne publie pas d'APL pour eux, et le
+  répertoire des professionnels (RPPS) demanderait un géocodage des cabinets.
+
+## Îlots de chaleur : le tissu urbain autour de la mairie
+
+`python -m pipeline.chaleur` (avant la couche communale, seulement si le Cerema republie)
+lit la cartographie des zones climatiques locales (LCZ, Stewart et Oke 2012) des 88 aires
+urbaines de plus de 50 000 habitants, faite par le Cerema sur images satellite 2022. Chaque
+îlot y porte sa classe et les indicateurs qui la déterminent. Pour chaque commune couverte,
+on échantillonne un disque de 1 km autour de la mairie tous les 100 m (≈ 314 points) :
+
+| Colonne | Mesure |
+|---|---|
+| `mineral_1km` | part minéralisée du sol : bâti + revêtements imperméables (indicateurs BuR + RoR du Cerema) |
+| `arbres_1km` | part couverte d'arbres (VeR × VHR) |
+| `dense_1km` | part du disque en tissu compact, classes LCZ 1 à 3 (plus de 40 % de surface bâtie) |
+| `lcz_mairie` | classe de l'îlot de la mairie |
+| `lcz_couvert` | part du disque cartographiée ; sous 50 %, les parts ne sont pas publiées |
+
+- **Pourquoi la mairie et 1 km.** C'est le centre que l'on pratique à pied ; un quotidien
+  sans voiture s'y déroule. Pour une très grande ville, c'est l'hypercentre, pas toute la ville.
+- **Pourquoi pas la « sensibilité aux fortes chaleurs » du Cerema.** Son guide précise que
+  cette note par classe « n'a aucune valeur scientifique ». Les indicateurs physiques, eux,
+  sont mesurés. Ce ne sont pas des températures : le relief, le vent ou un cours d'eau
+  modulent l'effet, et une même minéralisation chauffe plus sous un climat chaud. Le climat
+  futur (TRACC) et le tissu urbain se lisent donc ensemble.
+- **Poids nul par défaut.** Hors des 88 aires urbaines (19 600 communes, surtout rurales),
+  il n'y a pas de donnée : un poids par défaut favoriserait ou pénaliserait les communes
+  cartographiées selon leur rang entre elles. À activer soi-même pour comparer des villes.
+- **Lecture des archives.** 8,7 Go publiés, dont une image raster de 1,5 m par territoire :
+  on ne télécharge que les shapefiles (≈ 3,5 Go compressés), en lisant le répertoire de
+  chaque zip par requêtes HTTP Range, puis on les lit en flux, sans bibliothèque SIG.
 
 ## Recherche : la fiche d'une commune
 

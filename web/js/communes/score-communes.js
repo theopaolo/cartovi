@@ -10,6 +10,7 @@ import { DEFAULT_NORM, composite, rank, scorerOf } from '../score.js';
 import { NBSP, fmtNumber, fmtValue } from '../format.js';
 import { fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from './text.js';
 import { FUTUR, fmtFutur } from '../climat.js';
+import { fmtApl, fmtAplSf, fmtKmRound } from '../sante.js';
 
 export const NUC_CAP_KM = 40; // au-delà de deux fois le rayon PPI (20 km), la distance ne compte plus : ex æquo à 40
 export const W_MAX = 3;
@@ -27,6 +28,8 @@ export const GROUPS = [
   { id: 'mobilite', label: 'Vie sans voiture' },
   { id: 'locale', label: 'Vie locale et coopération' },
   { id: 'enfants', label: 'Enfants' },
+  { id: 'sante', label: 'Santé' },
+  { id: 'chaleur', label: 'Îlot de chaleur (centre)' },
 ];
 
 const fmtRecognitions = (v) => `${fmtNumber(v)}${NBSP}reconnaissance${v > 1 ? 's' : ''}`;
@@ -43,7 +46,7 @@ const MOINS_PLUS = [
  *  get(r) : valeur propre à la liaison retenue ou à la commune ; col : colonne communale ; dep : indicateur départemental
  *  fallback : 'cell' (une commune sans valeur prend celle de son département, même unité)
  *             'column' (repli sur le département seulement si TOUTE la colonne manque : unités différentes)
- *  cap : plafond de la valeur utilisée pour classer
+ *  cap : plafond de la valeur utilisée pour classer ; floor : plancher (en deçà, toutes les communes sont à égalité)
  *  legacy : colonnes plus fines qui, dès que l'une est présente, rendent ce critère inutile (il ne sert que de repli sur d'anciennes données)
  *  repliDir : sens du repli départemental quand il diffère (distance en km : plus loin = mieux ; part du territoire en zone PPI : moins = mieux)
  */
@@ -52,6 +55,8 @@ export const CRITERIA = [
   { id: 'dir', group: 'train', label: 'Trains directs par jour', w: 1, dir: 1, get: (r) => r.trains, fmt: trainsText },
   { id: 'cul', group: 'culture', label: 'Offre culturelle à 15 km', w: 1, dir: 1, get: (r) => culture(r.c), fmt: (v) => `${fmtNumber(v)}${NBSP}lieu${v > 1 ? 'x' : ''}` },
   { id: 'prx', group: 'prix', label: 'Prix des maisons', w: 1.5, choice: MOINS_PLUS, choiceDefault: 'moins', col: 'prix', dep: 'prix_maison_m2', fallback: 'cell', fmt: fmtPrice },
+  // appartements : à 0 par défaut (les villages en vendent trop peu : le critère ne compte que là où il existe)
+  { id: 'pra', group: 'prix', label: 'Prix des appartements', w: 0, choice: MOINS_PLUS, choiceDefault: 'moins', col: 'prix_appart', fmt: fmtPrice },
   {
     id: 'tai',
     group: 'prix',
@@ -95,7 +100,8 @@ export const CRITERIA = [
   { id: 'bil', group: 'eau', label: 'Bilan hydrique', w: 1, dir: 1, dep: 'bilan_hydrique' },
   // climat futur TRACC (DRIAS) : valeur du point de grille de la commune, sinon celle du département (même unité)
   ...[
-    ['f35', 'tx35_27', 1],
+    ['f30', 'tx30_27', 1],
+    ['f35', 'tx35_27', 0.5],
     ['ftr', 'tr_27', 0.5],
     ['fso', 'swi04_27', 1],
     ['ffe', 'ifm40_27', 0.5],
@@ -117,6 +123,14 @@ export const CRITERIA = [
   { id: 'fes', group: 'culture', label: 'Festivals à 15 km', w: 0, dir: 1, col: 'festivals_15km', fmt: (v) => fmtNumber(v) },
   { id: 'col', group: 'enfants', label: 'Collèges à 5 km', w: 0, dir: 1, col: 'college_5km', fmt: (v) => fmtNumber(v) },
   { id: 'lyc', group: 'enfants', label: 'Lycées à 5 km', w: 0, dir: 1, col: 'lycee_5km', fmt: (v) => fmtNumber(v) },
+  // accès aux soins (pipeline/sante.py) : un besoin plus qu'une préférence, d'où des poids par défaut
+  { id: 'amg', group: 'sante', label: 'Médecins généralistes accessibles (APL)', w: 1, dir: 1, col: 'apl_mg', fmt: fmtApl },
+  { id: 'asf', group: 'sante', label: 'Sages-femmes accessibles (APL)', w: 0.5, dir: 1, col: 'apl_sf', fmt: fmtAplSf },
+  // en deçà de 10 km (un quart d'heure de route), la distance ne départage plus
+  { id: 'mat', group: 'sante', label: 'Distance à la maternité la plus proche', w: 0.5, dir: -1, col: 'maternite_km', floor: 10, fmt: fmtKmRound },
+  // îlots de chaleur (pipeline/chaleur.py) : 88 aires urbaines seulement, d'où un poids nul par défaut
+  { id: 'icm', group: 'chaleur', label: 'Sol minéralisé à 1 km de la mairie', w: 0, dir: -1, col: 'mineral_1km', fmt: fmtPct },
+  { id: 'ica', group: 'chaleur', label: 'Couvert d’arbres à 1 km de la mairie', w: 0, dir: 1, col: 'arbres_1km', fmt: fmtPct },
 ];
 
 export const CRITERION = Object.fromEntries(CRITERIA.map((k) => [k.id, k]));
@@ -177,7 +191,7 @@ export function resolve(k, r, env, level) {
   }
   if (k.col && level === 'commune') {
     const raw = r.c[k.col];
-    if (Number.isFinite(raw)) return { v: k.cap ? Math.min(raw, k.cap) : raw, raw, gran: 'commune' };
+    if (Number.isFinite(raw)) return { v: Math.max(k.cap ? Math.min(raw, k.cap) : raw, k.floor ?? -Infinity), raw, gran: 'commune' };
     if (k.fallback !== 'cell') return null; // nucléaire, Seveso : unités différentes du département, on ne mélange pas
   }
   const d = k.dep ? env.ind(k.dep)?.values?.[r.c.dep] : undefined;

@@ -30,13 +30,14 @@ from . import datagouv, db, geo, territories
 from .http import Http
 from .util import communes as fetch_communes
 from . import locale
+from . import chaleur, sante
 from .sources import catnat, consoenaf, tracc
 from .util import dep_of_commune, norm_commune, position
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 10  # 10 : vie locale (ESS, coopératives, associations, sans voiture, écoles, tiers-lieux, festivals) ; 9 : position de la mairie au lieu du centre géométrique ; 8 : climat futur TRACC (DRIAS) ; 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
+VERSION = 11  # 11 : santé (APL, maternités), prix des appartements, jours à 30 °C ; 10 : vie locale (ESS, coopératives, associations, sans voiture, écoles, tiers-lieux, festivals) ; 9 : position de la mairie au lieu du centre géométrique ; 8 : climat futur TRACC (DRIAS) ; 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -275,40 +276,57 @@ def venues(ctx):
 # --- prix ----------------------------------------------------------------------------------------
 
 
+PRICE_KINDS = ("maison", "appartement")
+MIN_SALES = 10
+
+
 def prices(ctx):
+    """{type de bien: {commune: médiane €/m²}} ; une médiane n'est retenue qu'à partir de MIN_SALES ventes."""
     res = datagouv.resource(ctx.http, "statistiques-dvf", title="Statistiques totales DVF")
-    out = {}
-    plm = {}  # Paris, Lyon, Marseille : publiés par arrondissement
+    out = {k: {} for k in PRICE_KINDS}
+    plm = {k: {} for k in PRICE_KINDS}  # Paris, Lyon, Marseille : publiés par arrondissement
     for r in ctx.http.csv(res["url"], timeout=300):
-        if r.get("echelle_geo") == "commune":
-            med, n = r.get("med_prix_m2_whole_maison"), r.get("nb_ventes_whole_maison")
-            if med and n and float(n) >= 10:
-                code = norm_commune(r["code_geo"])
-                out[code] = round(float(med))
-                city = ARRONDISSEMENTS.get(code[:3] if code.startswith(("751", "132")) else code[:4])
+        if r.get("echelle_geo") != "commune":
+            continue
+        code = norm_commune(r["code_geo"])
+        city = ARRONDISSEMENTS.get(code[:3] if code.startswith(("751", "132")) else code[:4])
+        for kind in PRICE_KINDS:
+            med, n = r.get(f"med_prix_m2_whole_{kind}"), r.get(f"nb_ventes_whole_{kind}")
+            if med and n and float(n) >= MIN_SALES:
+                out[kind][code] = round(float(med))
                 if city:
-                    plm.setdefault(city, []).append((float(n), float(med)))
-    for city, parts in plm.items():
-        # moyenne des médianes d'arrondissement pondérée par les ventes : approximation
-        out[city] = round(sum(n * m for n, m in parts) / sum(n for n, _ in parts))
-    ctx.log(f"  DVF : prix des maisons pour {len(out)} communes")
+                    plm[kind].setdefault(city, []).append((float(n), float(med)))
+    for kind in PRICE_KINDS:
+        for city, parts in plm[kind].items():
+            # moyenne des médianes d'arrondissement pondérée par les ventes : approximation
+            out[kind][city] = round(sum(n * m for n, m in parts) / sum(n for n, _ in parts))
+    ctx.log(f"  DVF : prix des maisons pour {len(out['maison'])} communes, "
+            f"des appartements pour {len(out['appartement'])}")
+    if len(out["appartement"]) < 2000:  # colonnes renommées ? la colonne reste vide, le reste de la couche passe
+        ctx.log(f"  prix des appartements écartés : {len(out['appartement'])} communes seulement")
+        out["appartement"] = {}
     return out
 
 
 # --- assemblage ----------------------------------------------------------------------------------
+
+CHALEUR = ("lcz_mairie", "dense_1km", "mineral_1km", "arbres_1km", "lcz_couvert")
 
 
 FINE = ("densite", "artif", "catnat", "nucleaire_km", "seveso_10km",
         "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt", "risques", "ppr", "trait_cote",
         "tracc_pt", "tracc_km", *tracc.SCORED.values(),
         "sans_voiture", "navette_douce", "ess", "coop", "assos",
-        "ess_1000_10km", "assos_1000_10km", "coop_10km", "tiers_lieux_10km", "festivals_15km", "college_5km", "lycee_5km")
+        "ess_1000_10km", "assos_1000_10km", "coop_10km", "tiers_lieux_10km", "festivals_15km", "college_5km", "lycee_5km",
+        "apl_mg", "apl_sf", "maternite_km", "maternite_type",
+        *CHALEUR)
 LOCALE = ("sans_voiture", "navette_douce", "ess", "coop", "assos", "ess_1000_10km", "assos_1000_10km", "coop_10km",
           "tiers_lieux_10km", "festivals_15km", "college_5km", "lycee_5km")
 
 
 GROUPS = {"catnat": ("catnat", "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt"), "risques": ("risques", "ppr"),
-          "tracc": ("tracc_pt", "tracc_km", *tracc.SCORED.values()), "locale": LOCALE}
+          "tracc": ("tracc_pt", "tracc_km", *tracc.SCORED.values()), "locale": LOCALE,
+          "maternite": ("maternite_km", "maternite_type"), "chaleur": CHALEUR}
 
 
 def fine_grained(ctx, coms):
@@ -317,6 +335,7 @@ def fine_grained(ctx, coms):
     indépendant : une source en panne laisse sa colonne vide (la page retombe alors sur
     la valeur du département) sans empêcher le reste."""
     out = {k: {} for k in FINE}
+    meta = ctx.fine_meta = {}  # millésimes des sources, repris dans index.json
 
     def guarded(name, fn):
         try:
@@ -432,9 +451,37 @@ def fine_grained(ctx, coms):
             for c in coms:
                 out[col][c.code] = sum(1 for _ in g.near(c.x, c.y, radius))
 
+    def apl(kind):
+        # DREES : l'APL tient déjà compte des communes voisines (on ne l'agrège pas dans un rayon)
+        values, year = sante.apl(ctx, kind)
+        meta.setdefault("sante", {})[f"apl_{kind}"] = year
+        for c in coms:
+            out[f"apl_{kind}"][c.code] = values.get(c.code)
+
+    def maternite():
+        pts, year = sante.maternity_points(ctx, {c.code: (c.x, c.y) for c in coms})
+        meta.setdefault("sante", {})["maternites"] = year
+        for c in coms:
+            km, m = sante.nearest(pts, c.x, c.y)
+            out["maternite_km"][c.code], out["maternite_type"][c.code] = km, m["type"]
+
+    def chaleur_():
+        # pipeline.chaleur (LCZ du Cerema), généré avant ; hors des 88 aires urbaines : null
+        rows, meta_ = chaleur.load()
+        if not rows:
+            raise ValueError("web/data/chaleur/communes.json absent : lancer python -m pipeline.chaleur")
+        meta["chaleur"] = {"radius_m": meta_.get("radius_m"), "labels": meta_.get("labels"),
+                           "dataset": meta_.get("dataset"), "generated_at": meta_.get("generated_at")}
+        for c in coms:
+            v = rows.get(c.code, {})
+            for col, key in zip(CHALEUR, ("lcz_mairie", "dense_1km", "mineral_1km", "arbres_1km", "couvert_1km")):
+                out[col][c.code] = v.get(key)
+
     for name, fn in (("densite", densite), ("artif", artif), ("catnat", catnat_), ("nucleaire_km", nucleaire),
                      ("seveso_10km", seveso), ("risques", risques), ("trait_cote", trait_cote),
-                     ("tracc", climat_futur), ("locale", vie_locale)):
+                     ("tracc", climat_futur), ("locale", vie_locale),
+                     ("apl_mg", lambda: apl("mg")), ("apl_sf", lambda: apl("sf")), ("maternite", maternite),
+                     ("chaleur", chaleur_)):
         guarded(name, fn)
     ctx.log("  à la commune : " + ", ".join(f"{k} {len(v)}" for k, v in out.items()))
     return out
@@ -492,7 +539,7 @@ def build(ctx):
     for lon, lat, cats in culture:
         grid_cult.add(*geo.lambert93(lon, lat), cats)
 
-    columns = ["code", "nom", "dep", "pop", "x", "y", "prix", "gauche_commune", "gauche_10km", *CULTURE, "cinemas_5km", "scenes_5km",
+    columns = ["code", "nom", "dep", "pop", "x", "y", "prix", "prix_appart", "gauche_commune", "gauche_10km", *CULTURE, "cinemas_5km", "scenes_5km",
                "gare", "gare_km", "trains_jour", "villes", *FINE]
     by_region = {}
     for c in coms:
@@ -520,7 +567,7 @@ def build(ctx):
         g = main_station(near, stations)
         sx, sy = tr(c.x, c.y)
         row = [
-            c.code, c.name, c.dep, c.pop, round(sx, 1), round(sy, 1), price.get(c.code),
+            c.code, c.name, c.dep, c.pop, round(sx, 1), round(sy, 1), price["maison"].get(c.code), price["appartement"].get(c.code),
             round(100 * lv / ev, 1) if ev else None, round(100 * nl / ne, 1) if ne else None,
             *(cult[k] for k in CULTURE), near5["cinemas"], near5["scenes"],
             stations[g[1]]["name"] if g else None, round(g[0], 1) if g else None,
@@ -539,6 +586,7 @@ def build(ctx):
                       "seveso": SEVESO_RADIUS_KM, "proche": NEAR_RADIUS_KM, "local": LOCAL_RADIUS_KM,
                       "festival": FESTIVAL_RADIUS_KM},
         "locale": (locale.load()[1] or {}).get("sources"),
+        **{k: v for k, v in getattr(ctx, "fine_meta", {}).items()},
         "hubs": [{**h, "x": round(tr(*geo.lambert93(h["lon"], h["lat"]))[0], 1),
                   "y": round(tr(*geo.lambert93(h["lon"], h["lat"]))[1], 1)} for h in hubs],
         "columns": columns,
@@ -595,11 +643,13 @@ def main(argv=None):
     except (OSError, ValueError):
         version = None
     fresh = last and (today - datetime.date.fromisoformat(last[:10])).days < MAX_AGE_DAYS
-    # la vie locale (pipeline.locale) a été régénérée depuis : on reconstruit pour l'intégrer
+    # la vie locale (pipeline.locale) ou les îlots de chaleur (pipeline.chaleur) ont été régénérés depuis :
+    # on reconstruit pour les intégrer
     try:
         built = json.loads((OUT / "index.json").read_text("utf-8")).get("generated_at", "")
         loc = (locale.load()[1] or {}).get("generated_at", "")
-        fresh = fresh and not (loc and loc > built)
+        heat = (chaleur.load()[1] or {}).get("generated_at", "")
+        fresh = fresh and not (loc and loc > built) and not (heat and heat > built)
     except (OSError, ValueError):
         pass
     if not args.force and fresh and version == VERSION:

@@ -72,9 +72,15 @@ _DESC_TAIL = (
     "maille de 8 km lisse les reliefs et ignore les îlots de chaleur urbains."
 )
 INDICATORS = [
-    {"id": "tx35_27", "key": "tx35", "label": "Jours à 35 °C ou plus (+2,7 °C)", "unit": "jours/an",
+    {"id": "tx30_27", "key": "tx30", "label": "Jours à 30 °C ou plus (+2,7 °C)", "unit": "jours/an",
      "theme": "futur", "direction": -1, "weight": 1.0, "decimals": 1,
-     "description": "Nombre moyen de jours par an où la température maximale atteint 35 °C." + _DESC_TAIL},
+     "description": "Nombre moyen de jours par an où la température maximale atteint 30 °C : la chaleur "
+                    "ordinaire de l'été, celle de l'école, du travail et du sommeil." + _DESC_TAIL},
+    {"id": "tx35_27", "key": "tx35", "label": "Jours à 35 °C ou plus (+2,7 °C)", "unit": "jours/an",
+     "theme": "futur", "direction": -1, "weight": 0.5, "decimals": 1,
+     "description": "Nombre moyen de jours par an où la température maximale atteint 35 °C : les "
+                    "canicules. Ces jours sont aussi comptés parmi les jours à 30 °C, d'où un demi-poids."
+                    + _DESC_TAIL},
     {"id": "tr_27", "key": "tr", "label": "Nuits tropicales (+2,7 °C)", "unit": "nuits/an",
      "theme": "futur", "direction": -1, "weight": 0.5, "decimals": 1,
      "description": "Nombre moyen de nuits par an où la température minimale reste au-dessus de 20 °C : "

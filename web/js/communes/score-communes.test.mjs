@@ -134,4 +134,15 @@ const a1 = scoreCommunes(m, withW({ tps: 1 }), menv2, memo).byCode.get('M2').sco
 const a2 = scoreCommunes(m, { ...withW({ tps: 1 }), norm: 'minmax' }, menv2, memo).byCode.get('M2').score;
 assert.notEqual(a1, a2);
 
+// plancher : en deçà de 10 km de la maternité, ex æquo ; au-delà, plus près = mieux
+const mt = [res(com('T1', '01', { maternite_km: 2 })), res(com('T2', '01', { maternite_km: 8 })), res(com('T3', '01', { maternite_km: 40 }))];
+const st = scoreCommunes(mt, withW({ mat: 1 }), envFor(mt.map((r) => r.c)));
+assert.equal(st.byCode.get('T1').score, st.byCode.get('T2').score);
+assert.ok(st.byCode.get('T2').score > st.byCode.get('T3').score);
+// appartements : critère à 0 par défaut, sens « moins cher » ; santé notée par défaut, îlots de chaleur non (couverture partielle)
+assert.equal(d.w.pra, 0);
+assert.equal(d.o.pra, 'moins');
+assert.ok(d.w.amg > 0 && d.w.f30 > 0);
+assert.equal(d.w.icm, 0);
+
 console.log('score-communes : ok');

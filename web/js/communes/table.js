@@ -122,7 +122,7 @@ export function createResults(root, { index, onSort, onSelect }) {
         h('span', { class: 'sub' }, `${basisText(ctx.basis === 'zone' ? 'commune' : 'zone')} : ${fmtPct(ctx.basis === 'zone' ? c.gauche_commune : c.gauche_10km)}`),
       ),
       h('td', { class: 'c-culture' }, cultureText(c)),
-      h('td', { class: 'c-prix c-val' }, fmtPrice(c.prix)),
+      h('td', { class: 'c-prix c-val' }, fmtPrice(c.prix), c.prix_appart != null ? h('span', { class: 'sub' }, `appart. ${fmtPrice(c.prix_appart)}`) : null),
     );
     return tr;
   }

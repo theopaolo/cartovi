@@ -11,6 +11,7 @@ import { traitText } from '../communes/risks-view.js';
 import { NATIONAL_LEFT, SOURCES, trainNote } from './text.js';
 import { EAU_CAVEAT, eauCellText, eauOf } from '../eau.js';
 import { VIE_CAVEAT, VIE_SOURCES, hasVie, vieRows } from '../vielocale.js';
+import { CHALEUR_CAVEAT, CHALEUR_SOURCE, SANTE_CAVEAT, SANTE_SOURCES, chaleurRows, hasChaleur, hasSante, santeRows } from '../sante.js';
 import { FUTUR, TRACC_CAVEAT, TRACC_LEVELS_NOTE, TRACC_SOURCE, cellText, fmtFutur, hasFutur, pointNote, trajectory } from '../climat.js';
 
 /**
@@ -49,11 +50,13 @@ function communeSections(ctx, c, failed) {
       pending('train', 'Train', SOURCES.train),
       pending('politique', 'Climat politique', SOURCES.vote),
       pending('culture', `Culture à moins de ${R.culture}${NBSP}km`, SOURCES.culture),
-      pending('prix', 'Prix des maisons', SOURCES.prix),
+      pending('prix', 'Prix au m²', SOURCES.prix),
       pending('terres', TERRES_TITLE, SOURCES.terres),
       pending('risques', RISQUES_TITLE, SOURCES.gaspar),
       pending('futur', FUTUR_TITLE, TRACC_SOURCE),
       pending('vie', VIE_TITLE, VIE_SOURCES[0]),
+      pending('sante', SANTE_TITLE, SANTE_SOURCES[0]),
+      pending('chaleur', CHALEUR_TITLE, CHALEUR_SOURCE),
     ];
   }
   // trajets directs vers les villes de référence, triés par durée
@@ -116,18 +119,39 @@ function communeSections(ctx, c, failed) {
     {
       id: 'prix',
       scope: 'commune',
-      title: 'Prix des maisons',
-      rows: [{ id: 'prix', label: 'Médiane du prix au m²', text: c.prix != null ? fmtPrice(c.prix) : 'moins de 10 ventes', sub: c.prix != null ? 'maisons, environ 5 ans' : 'valeur non publiée' }],
+      title: 'Prix au m²',
+      rows: [
+        { id: 'prix', label: 'Maisons', text: c.prix != null ? fmtPrice(c.prix) : 'moins de 10 ventes', sub: c.prix != null ? 'médiane, environ 5 ans' : 'valeur non publiée' },
+        { id: 'prix_appart', label: 'Appartements', text: c.prix_appart != null ? fmtPrice(c.prix_appart) : 'moins de 10 ventes', sub: c.prix_appart != null ? 'médiane, environ 5 ans' : 'valeur non publiée' },
+      ],
       source: { ...SOURCES.prix, period: 'ventes d’environ cinq ans' },
     },
     terres(c, R),
     risques(c),
     futur(c, ctx.tracc),
     vie(c, R),
+    sante(c),
+    chaleur(c),
   ];
 }
 
 const VIE_TITLE = 'Vie locale et mobilité — valeurs de la commune et de ses environs';
+const SANTE_TITLE = 'Accès aux soins';
+const CHALEUR_TITLE = 'Îlot de chaleur — tissu urbain autour de la mairie';
+
+/** Médecins généralistes et sages-femmes (APL de la DREES), maternité la plus proche. */
+function sante(c) {
+  const base = { id: 'sante', scope: 'commune', title: SANTE_TITLE, note: SANTE_CAVEAT, sources: SANTE_SOURCES.map((s) => ({ ...s, period: 'dernier millésime publié' })) };
+  if (!hasSante(c)) return { ...base, rows: [{ id: 'sante_none', label: 'Accès aux soins', text: 'non disponible dans ces données' }] };
+  return { ...base, rows: santeRows(c) };
+}
+
+/** Tissu urbain à 1 km de la mairie (LCZ du Cerema), dans les 88 aires urbaines cartographiées. */
+function chaleur(c) {
+  const base = { id: 'chaleur', scope: 'commune', title: CHALEUR_TITLE, note: CHALEUR_CAVEAT, source: { ...CHALEUR_SOURCE, period: 'images satellite 2022' } };
+  if (!hasChaleur(c)) return { ...base, rows: [{ id: 'chaleur_none', label: 'Tissu urbain', text: 'hors des 88 aires urbaines cartographiées par le Cerema' }] };
+  return { ...base, rows: chaleurRows(c) };
+}
 
 /** Vie locale (ESS, coopératives, associations, tiers-lieux), mobilité sans voiture, culture de proximité, écoles. */
 function vie(c, R) {
