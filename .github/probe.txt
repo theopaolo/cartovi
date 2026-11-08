@@ -1,5 +1,2 @@
-# Étape 2 : où sont les indicateurs TRACC (public ou derrière compte) ?
-https://climatedata.cnrm-game-meteo.fr/public/dcsc/projects/DRIAS/	sh python3 .github/probe.py 7
-https://www.drias-climat.fr/document/Liste_indicateurs_TRACC_2023-11-30.pdf	sh pip -q install pypdf >/dev/null 2>&1; python3 -c "import pypdf;r=pypdf.PdfReader('/tmp/r');print('\n'.join(p.extract_text() for p in r.pages))"
-https://www.data.gouv.fr/api/1/datasets/?q=TRACC&page_size=40	[.data[] | {title, id, org: .organization.name, res: [.resources[] | {title, format, filesize}][0:6]}]
-https://www.data.gouv.fr/api/1/datasets/?q=Explore2&page_size=40	[.data[] | {title, id, org: .organization.name, res: [.resources[] | {title, format, filesize}][0:6]}]
+# Étape 2 : jeux Explore2 TRACC par commune (RARE, data.gouv)
+https://www.data.gouv.fr/api/1/datasets/69848339e734f1ba1e7f3217/	sh pip -q install pypdf >/dev/null 2>&1; python3 .github/probe.py

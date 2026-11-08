@@ -1,35 +1,39 @@
-# Sonde : arborescence du serveur public Météo-France (DRIAS) — sans authentification ?
-import re, sys, time, urllib.request, html
-ROOT = "https://climatedata.cnrm-game-meteo.fr/public/dcsc/projects/DRIAS/"
-ROW = re.compile(r'href="([^"?/][^"]*)".*?(\d{4}-\d\d-\d\d \d\d:\d\d|\d\d-\w{3}-\d{4} \d\d:\d\d)?\s*(?:</td><td[^>]*>)?\s*([\d.]+[KMG]?|-)?\s*<', re.S)
-seen, budget = set(), [450]
-def ls(url):
-    budget[0] -= 1
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "carteplan-probe"}), timeout=60) as r:
-        t = r.read().decode("utf-8", "replace")
-    dirs, files = [], []
-    for line in t.splitlines():
-        m = re.search(r'href="([^"?/][^"]*)"', line)
-        if not m or m.group(1).startswith(("http", "#", "..")):
-            continue
-        name = html.unescape(m.group(1))
-        size = re.findall(r'>\s*([\d.]+[KMG]?)\s*<', line)
-        date = re.findall(r'(\d{4}-\d\d-\d\d \d\d:\d\d|\d\d-\w{3}-\d{4} \d\d:\d\d)', line)
-        (dirs if name.endswith("/") else files).append((name, size[-1] if size else "?", date[0] if date else ""))
-    return dirs, files
-def walk(url, depth):
-    if url in seen or budget[0] <= 0: return
-    seen.add(url)
-    try: dirs, files = ls(url)
-    except Exception as e: print("ERR", url[len(ROOT):], e); return
-    rel = url[len(ROOT):] or "/"
-    ex = ", ".join(f"{n} [{s} {d}]" for n, s, d in files[:4])
-    print(f"{rel}  dirs={len(dirs)} files={len(files)}  {ex}")
-    if depth == 0: return
-    for n, _, _ in dirs:
-        # on n'ouvre pas les centaines de sous-dossiers par modèle : 6 premiers seulement
-        walk(url + n, depth - 1) if len(dirs) < 25 or "TRACC" in n.upper() else None
-    if len(dirs) >= 25:
-        print(f"   … {len(dirs)} sous-dossiers : {', '.join(n for n,_,_ in dirs[:25])}")
-walk(ROOT, int(sys.argv[1]) if len(sys.argv) > 1 else 6)
-print("requêtes restantes", budget[0])
+import urllib.parse
+# Sonde : jeux Explore2 TRACC du RARE sur data.gouv (ressources, en-têtes des CSV communaux, documentation)
+import io, json, sys, urllib.request
+def get(url, rng=None):
+    h = {"User-Agent": "carteplan-probe"}
+    if rng: h["Range"] = f"bytes=0-{rng}"
+    with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=240) as r:
+        return r.read()
+def pdf(url, pages=6):
+    import pypdf
+    r = pypdf.PdfReader(io.BytesIO(get(url)))
+    return "\n".join((p.extract_text() or "") for p in r.pages[:pages])
+for ds in ("69848339e734f1ba1e7f3217", "6984b51bbcec9075a423a373"):
+    d = json.loads(get(f"https://www.data.gouv.fr/api/1/datasets/{ds}/"))
+    print("#####", d["title"], "| maj", d.get("last_modified"), "| licence", d.get("license"))
+    print(d.get("description", "")[:2500])
+    org = d.get("organization") or {}
+    for r in d["resources"]:
+        print(f"- {r['title']} | {r.get('filesize')} | {r.get('last_modified','')[:10]} | {r['url']}")
+    if ds == "69848339e734f1ba1e7f3217":
+        for r in d["resources"]:
+            if "COMMUNE" in r["title"] and r["title"].endswith(".csv"):
+                print("=== en-tête", r["title"])
+                print(get(r["url"], 2500).decode("utf-8", "replace"))
+                break
+        for r in d["resources"]:
+            if r["title"].startswith(("20250218_RARE_documentation", "Fiche_STATISTIQUES")):
+                print("=== PDF", r["title"])
+                try: print(pdf(r["url"], 12)[:12000])
+                except Exception as e: print("ERR", e)
+print("##### autres jeux de l'organisation", org.get("name"))
+o = json.loads(get(f"https://www.data.gouv.fr/api/1/organizations/{org['id']}/datasets/?page_size=50"))
+for d in o["data"]:
+    print("-", d["title"], "|", d["id"], "|", len(d["resources"]), "ressources")
+for q in ("climadiag", "indicateurs climatiques commune", "TRACC commune", "DRIAS"):
+    s = json.loads(get("https://www.data.gouv.fr/api/1/datasets/?page_size=15&q=" + urllib.parse.quote(q)))
+    print("##### recherche", q)
+    for d in s["data"]:
+        print("-", d["title"], "|", (d.get("organization") or {}).get("name"), "|", d["id"])
