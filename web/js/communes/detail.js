@@ -7,6 +7,7 @@ import { riskNodes } from './risks-view.js';
 import { fmtCriterion } from './score-communes.js';
 import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, trainsText } from './text.js';
 import { FUTUR, TRACC_CAVEAT, fmtFutur, hasFutur, pointNote } from '../climat.js';
+import { hasVie, vieRows } from '../vielocale.js';
 
 // indicateurs départementaux rappelés (ceux qui manquent sont simplement omis)
 const DEP_INDICATORS = ['secheresse_jours', 'catnat'];
@@ -54,6 +55,7 @@ export function createDetail(root, { index, onClose }) {
         ),
         risks(c),
         futur(c),
+        vie(c, R),
         department(c, dep, payload),
         h('p', {}, h('a', { href: `recherche.html#c=${encodeURIComponent(c.code)}` }, 'Fiche complète')),
       );
@@ -174,6 +176,18 @@ function risks(c) {
     h('h3', {}, 'Risques — valeurs de la commune'),
     ...riskNodes(riskReading(c)),
     h('p', { class: 'muted small' }, RISK_CAVEAT, ' Sources : GASPAR (Géorisques), liste officielle du trait de côte.'),
+  );
+}
+
+/** Vie locale et mobilité : valeurs de la commune et de son bassin de vie (détail et sources dans la fiche complète). */
+function vie(c, R) {
+  if (!hasVie(c)) return null;
+  return h(
+    'section',
+    {},
+    h('h3', {}, 'Vie locale et mobilité'),
+    h('dl', { class: 'kv' }, ...vieRows(c, R).flatMap((r) => row(r.label, r.text, r.sub))),
+    h('p', { class: 'muted small' }, 'Sources : SIRENE, répertoire des associations, recensement 2023, annuaire de l’éducation, France Tiers-Lieux, Panorama des festivals. Détail et limites dans la fiche complète.'),
   );
 }
 

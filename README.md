@@ -227,6 +227,29 @@ change d'un mode à l'autre est en soi une information.
   social, équipements). C'est l'étape suivante, pour une vue à deux axes : bien-être
   présent et exposition future.
 
+## Vie locale et mobilité sans voiture
+
+`python -m pipeline.locale` (mensuel, avant la couche communale) compte par commune, puis la
+couche communale agrège autour de la mairie de chaque commune :
+
+| Critère | Mesure | Source |
+|---|---|---|
+| Trajets sans voiture | part des actifs occupés allant travailler à pied, à vélo ou en transports en commun | recensement 2023 (INSEE, Melodi) |
+| Ménages sans voiture | part des résidences principales sans voiture | recensement 2023 |
+| Économie sociale et solidaire | établissements actifs de l'ESS pour 1 000 habitants, dans un rayon de 10 km | SIRENE (INSEE), fichier stock mensuel |
+| Coopératives | établissements actifs de coopératives à 10 km (SCOP, autres coopératives dont SCIC et CAE, coopératives de consommateurs, d'artisans, agricoles…), banques coopératives exclues | SIRENE, catégorie juridique |
+| Associations | associations actives ayant déclaré une création ou un changement depuis 5 ans, pour 1 000 habitants à 10 km | répertoire national des associations (RNA) |
+| Tiers-lieux | lieux recensés à 10 km (hors itinérants) | France Tiers-Lieux, recensement 2026 |
+| Culture de proximité | cinémas et scènes à 5 km ; festivals à 15 km | Basilic ; Panorama des festivals (éditions 2018-2019) |
+| Enfants | collèges et lycées ouverts à 5 km | annuaire de l'éducation |
+
+Ces critères sont à 0 par défaut dans le score : ce sont des préférences, comme le climat
+politique. Limites : ce sont des comptes de structures, pas leur taille ni leur ouverture
+(une association nationale compte là où elle a un établissement) ; une SCIC ou une SCOP en
+SAS n'a pas de catégorie juridique propre et n'est comptée que dans l'ESS ; la part des
+ménages sans voiture dit aussi la pauvreté ; le Panorama des festivals n'a pas été mis à jour
+depuis 2019. Les arrondissements de Paris, Lyon et Marseille sont rattachés à leur commune.
+
 ## Recherche : la fiche d'une commune
 
 `recherche.html` (et le champ de recherche présent dans l'en-tête de chaque page)

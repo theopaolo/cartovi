@@ -24,6 +24,9 @@ export const GROUPS = [
   { id: 'risques', label: 'Risques' },
   { id: 'eau', label: 'Eau et climat' },
   { id: 'futur', label: 'Climat futur (+2,7 °C, ≈ 2050)' },
+  { id: 'mobilite', label: 'Vie sans voiture' },
+  { id: 'locale', label: 'Vie locale et coopération' },
+  { id: 'enfants', label: 'Enfants' },
 ];
 
 const fmtRecognitions = (v) => `${fmtNumber(v)}${NBSP}reconnaissance${v > 1 ? 's' : ''}`;
@@ -101,6 +104,19 @@ export const CRITERIA = [
     const f = FUTUR.find((x) => x.col === col);
     return { id, group: 'futur', label: f.label, w, dir: -1, col, dep: col, fallback: 'cell', fmt: (v) => fmtFutur(v, f.unit, f.d) };
   }),
+  // vie locale et mobilité (pipeline/locale.py) : à 0 par défaut, ce sont des préférences ; valeurs de la commune ou de son bassin de vie
+  { id: 'nav', group: 'mobilite', label: 'Trajets domicile-travail sans voiture', w: 0, dir: 1, col: 'navette_douce', fmt: fmtPct },
+  { id: 'svo', group: 'mobilite', label: 'Ménages sans voiture', w: 0, dir: 1, col: 'sans_voiture', fmt: fmtPct },
+  { id: 'gar', group: 'mobilite', label: 'Trains au départ de la gare', w: 0, dir: 1, get: (r) => r.c.trains_jour ?? 0, fmt: trainsText },
+  { id: 'ess', group: 'locale', label: 'Structures de l’ESS à 10 km (pour 1 000 hab.)', w: 0, dir: 1, col: 'ess_1000_10km', fmt: (v) => fmtNumber(v, 1) },
+  { id: 'coo', group: 'locale', label: 'Coopératives à 10 km', w: 0, dir: 1, col: 'coop_10km', fmt: (v) => fmtNumber(v) },
+  { id: 'aso', group: 'locale', label: 'Associations actives à 10 km (pour 1 000 hab.)', w: 0, dir: 1, col: 'assos_1000_10km', fmt: (v) => fmtNumber(v, 1) },
+  { id: 'tli', group: 'locale', label: 'Tiers-lieux à 10 km', w: 0, dir: 1, col: 'tiers_lieux_10km', fmt: (v) => fmtNumber(v) },
+  { id: 'ci5', group: 'culture', label: 'Cinémas à 5 km', w: 0, dir: 1, col: 'cinemas_5km', fmt: (v) => fmtNumber(v) },
+  { id: 'sc5', group: 'culture', label: 'Scènes à 5 km', w: 0, dir: 1, col: 'scenes_5km', fmt: (v) => fmtNumber(v) },
+  { id: 'fes', group: 'culture', label: 'Festivals à 15 km', w: 0, dir: 1, col: 'festivals_15km', fmt: (v) => fmtNumber(v) },
+  { id: 'col', group: 'enfants', label: 'Collèges à 5 km', w: 0, dir: 1, col: 'college_5km', fmt: (v) => fmtNumber(v) },
+  { id: 'lyc', group: 'enfants', label: 'Lycées à 5 km', w: 0, dir: 1, col: 'lycee_5km', fmt: (v) => fmtNumber(v) },
 ];
 
 export const CRITERION = Object.fromEntries(CRITERIA.map((k) => [k.id, k]));

@@ -53,7 +53,7 @@ export function renderCompare(root, profiles, { onRemove, onOpen }) {
   const sub = (label) => rowsOf.push(h('tr', { class: 'cmp-sub' }, h('th', { scope: 'rowgroup', colspan: n + 1 }, h('span', {}, label))));
 
   // sections de la commune : lignes alignées par identifiant
-  for (const id of ['train', 'politique', 'culture', 'prix', 'terres', 'risques', 'futur', 'departement']) {
+  for (const id of ['train', 'politique', 'culture', 'prix', 'terres', 'risques', 'futur', 'vie', 'departement']) {
     const secs = profiles.map((p) => secOf(p, id));
     const ref = secs.find(Boolean);
     if (!ref) continue;

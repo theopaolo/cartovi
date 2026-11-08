@@ -10,6 +10,7 @@ import { CATNAT_KINDS, RISK_CAVEAT, riskLabel, riskReading } from '../communes/r
 import { traitText } from '../communes/risks-view.js';
 import { NATIONAL_LEFT, SOURCES, trainNote } from './text.js';
 import { EAU_CAVEAT, eauCellText, eauOf } from '../eau.js';
+import { VIE_CAVEAT, VIE_SOURCES, hasVie, vieRows } from '../vielocale.js';
 import { FUTUR, TRACC_CAVEAT, TRACC_LEVELS_NOTE, TRACC_SOURCE, cellText, fmtFutur, hasFutur, pointNote, trajectory } from '../climat.js';
 
 /**
@@ -52,6 +53,7 @@ function communeSections(ctx, c, failed) {
       pending('terres', TERRES_TITLE, SOURCES.terres),
       pending('risques', RISQUES_TITLE, SOURCES.gaspar),
       pending('futur', FUTUR_TITLE, TRACC_SOURCE),
+      pending('vie', VIE_TITLE, VIE_SOURCES[0]),
     ];
   }
   // trajets directs vers les villes de référence, triés par durée
@@ -121,7 +123,17 @@ function communeSections(ctx, c, failed) {
     terres(c, R),
     risques(c),
     futur(c, ctx.tracc),
+    vie(c, R),
   ];
+}
+
+const VIE_TITLE = 'Vie locale et mobilité — valeurs de la commune et de ses environs';
+
+/** Vie locale (ESS, coopératives, associations, tiers-lieux), mobilité sans voiture, culture de proximité, écoles. */
+function vie(c, R) {
+  const base = { id: 'vie', scope: 'commune', title: VIE_TITLE, note: VIE_CAVEAT, sources: VIE_SOURCES.map((s) => ({ ...s, period: 'dernières données publiées' })) };
+  if (!hasVie(c)) return { ...base, rows: [{ id: 'vie_none', label: 'Vie locale', text: 'non disponible dans ces données' }] };
+  return { ...base, rows: vieRows(c, R) };
 }
 
 const TERRES_TITLE = 'Terres et risques — valeurs de la commune';
