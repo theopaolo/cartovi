@@ -50,6 +50,7 @@ import tempfile
 import time
 import urllib.request
 import zipfile
+import zlib
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -212,19 +213,50 @@ def _melodi(ctx, ds, workdir):
                 download(MELODI.format(ds=ds, year=year), path, ctx.log, retries=0)
             except RuntimeError:
                 break  # millésime absent (404) : le précédent
-            if zipfile.is_zipfile(path):
+            size = os.path.getsize(path)
+            with open(path, "rb") as f:
+                head = f.read(200)
+            if zipfile.is_zipfile(path) or head[:4] == b"PK\x03\x04":
+                # archive sans répertoire central lisible (écrite en flux, ou coupée) : lue en flux ;
+                # une coupure se voit ensuite à la couverture, contrôlée par l'appelant
+                ctx.log(f"    {ds} {year} : {size / 1e6:.1f} Mo" + ("" if zipfile.is_zipfile(path) else ", sans répertoire central : lecture en flux"))
                 return path, year
             # Melodi limite le nombre d'appels par minute et répond alors autre chose qu'une archive
-            head = path.read_bytes()[:200]
             ctx.log(f"    {ds} {year} : réponse inattendue ({head!r}), nouvel essai dans 65 s")
             time.sleep(65)
     raise LookupError(f"{ds} : aucun millésime exploitable parmi {RP_YEARS}")
 
 
+def _stream_first_member(path):
+    """Lignes du premier fichier d'une archive zip lue en flux depuis son en-tête local, pour une
+    archive sans répertoire central exploitable."""
+    with open(path, "rb") as f:
+        head = f.read(30)
+        method = int.from_bytes(head[8:10], "little")
+        f.read(int.from_bytes(head[26:28], "little") + int.from_bytes(head[28:30], "little"))
+        d = zlib.decompressobj(-15) if method == 8 else None
+        buf = b""
+        while True:
+            chunk = f.read(1 << 20)
+            if not chunk:
+                break
+            buf += d.decompress(chunk) if d else chunk
+            *lines, buf = buf.split(b"\n")
+            for ln in lines:
+                yield ln.decode("utf-8-sig", "replace")
+            if d is not None and d.eof:
+                break
+        if buf:
+            yield buf.decode("utf-8-sig", "replace")
+
+
 def _melodi_rows(path):
-    z = zipfile.ZipFile(path)
-    name = next(n for n in z.namelist() if n.endswith("_data.csv"))
-    f = io.TextIOWrapper(z.open(name), encoding="utf-8-sig", errors="replace", newline="")
+    if zipfile.is_zipfile(path):
+        z = zipfile.ZipFile(path)
+        name = next(n for n in z.namelist() if n.endswith("_data.csv"))
+        f = io.TextIOWrapper(z.open(name), encoding="utf-8-sig", errors="replace", newline="")
+    else:
+        f = _stream_first_member(path)
     rd = csv.reader(f, delimiter=";")
     head = next(rd)
     return {h: i for i, h in enumerate(head)}, rd
