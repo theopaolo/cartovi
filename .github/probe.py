@@ -1,40 +1,72 @@
-import csv, io, json, re, sys, urllib.request, zipfile, gzip, subprocess, collections
-def get(url, timeout=600):
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "carteplan-probe", "Accept-Encoding": "gzip"}), timeout=timeout) as r:
+import collections, csv, io, json, re, struct, sys, urllib.request, zipfile, gzip, xml.etree.ElementTree as ET
+def get(url, timeout=900):
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "carteplan-probe"}), timeout=timeout) as r:
         b = r.read()
     return gzip.decompress(b) if b[:2] == b"\x1f\x8b" else b
+NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+def xlsx(data, nrows=8):
+    z = zipfile.ZipFile(io.BytesIO(data))
+    ss = []
+    if "xl/sharedStrings.xml" in z.namelist():
+        for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall("m:si", NS):
+            ss.append("".join(t.text or "" for t in si.iter("{%s}t" % NS["m"])))
+    wb = ET.fromstring(z.read("xl/workbook.xml"))
+    names = [s.get("name") for s in wb.find("m:sheets", NS)]
+    rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+    targets = [r.get("Target") for r in rels if "worksheet" in r.get("Type")]
+    for name, t in zip(names, targets):
+        root = ET.fromstring(z.read("xl/" + t.lstrip("/").replace("xl/", "")))
+        rows = root.findall(".//m:sheetData/m:row", NS)
+        print(f"--- feuille {name!r} : {len(rows)} lignes")
+        for row in rows[:nrows]:
+            vals = []
+            for c in row.findall("m:c", NS):
+                v = c.find("m:v", NS); is_ = c.find("m:is", NS)
+                txt = (ss[int(v.text)] if c.get("t") == "s" else v.text) if v is not None else ("".join(x.text or "" for x in is_.iter("{%s}t" % NS["m"])) if is_ is not None else "")
+                vals.append(f"{c.get('r')}={txt}")
+            print("   ", " | ".join(vals)[:900])
+def dbf(b, n=6):
+    nrec, hlen, rlen = struct.unpack("<IHH", b[4:12])
+    fields = []
+    for i in range(32, hlen - 1, 32):
+        f = b[i:i + 32]
+        fields.append((f[:11].split(b"\0")[0].decode(), chr(f[11]), f[16]))
+    print("DBF", nrec, "enregistrements ; champs", fields)
+    recs = []
+    for k in range(nrec):
+        o = hlen + k * rlen + 1; vals = []
+        for name, t, ln in fields:
+            vals.append(b[o:o + ln].decode("latin-1").strip()); o += ln
+        recs.append(vals)
+    for r in recs[:n]: print("   ", r)
+    for j, (name, t, ln) in enumerate(fields):
+        cnt = collections.Counter(r[j] for r in recs)
+        if len(cnt) <= 40: print("  ", name, sorted(cnt.items()))
 what = sys.argv[1]
-if what == "cj":
-    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--break-system-packages", "xlrd"], check=False)
-    import xlrd
-    wb = xlrd.open_workbook(file_contents=get("https://www.insee.fr/fr/statistiques/fichier/2028129/cj_septembre_2022.xls"))
-    for sh in wb.sheets():
-        for i in range(sh.nrows):
-            row = [str(c.value) for c in sh.row(i)]
-            if any(re.search(r"(coop|SCOP|intérêt collectif|mutu|fondation)", x, re.I) for x in row[1:2]): print(sh.name, "|", row[0], "|", row[1][:110])
-elif what == "melodi":
-    for ds, fid in (("DS_RP_NAVETTES_PRINC", "DS_RP_NAVETTES_PRINC_2023_CSV_FR"), ("DS_BPE_EDUCATION", "DS_BPE_EDUCATION_2025_CSV_FR")):
-        z = zipfile.ZipFile(io.BytesIO(get(f"https://api.insee.fr/melodi/file/{ds}/{fid}")))
-        print("#####", ds, z.namelist())
-        for n in z.namelist():
-            t = z.read(n).decode("utf-8-sig", "replace")
-            lines = t.splitlines(); print(n, len(lines), "lignes"); print("\n".join(lines[:4])[:1500])
-            if "metadata" in n.lower() or n.lower().endswith("_metadata.csv") or "meta" in n.lower():
-                for ln in lines:
-                    if re.search(r"(TRANS|C201|C301|C302|C1|C2|C3|F303|F305|F307|F312|F313|F314|F315|CARS)", ln): print("  META", ln[:200])
-elif what == "fest":
-    d = json.loads(get("https://www.data.gouv.fr/api/1/datasets/5b51825fa3a72936dfe1c340/"))
-    print("MAJ", d.get("last_modified"), d.get("license"))
-    for r in d["resources"]: print("-", r["title"], r["format"], r.get("filesize"), r.get("last_modified", "")[:10], r["url"])
-    url = next(r["url"] for r in d["resources"] if r["format"] == "csv")
-    t = get(url).decode("utf-8-sig", "replace")
-    rd = csv.reader(io.StringIO(t), delimiter=";" if t.count(";") > t.count(",") else ",")
-    head = next(rd); rows = list(rd); print(len(rows), "festivals ;", head)
-    for r in rows[:2]: print(dict(zip(head, r)))
-elif what == "tl":
-    t = get("https://static.data.gouv.fr/resources/recensement-des-tiers-lieux-en-france-2026/20260902-111854/bdftl-2026-01-fiche-identite.csv").decode("utf-8-sig", "replace")
-    rd = csv.reader(io.StringIO(t), delimiter=";"); head = next(rd); rows = list(rd)
-    print(len(rows), "lignes ;", head[:40])
-    for k in head:
-        if re.search(r"(statut|activit|ferm|projet)", k, re.I): print(k, collections.Counter(r[head.index(k)] for r in rows if len(r) == len(head)).most_common(6))
-    print("lignes complètes :", sum(1 for r in rows if len(r) == len(head)), "| avec coordonnées :", sum(1 for r in rows if len(r) == len(head) and r[head.index('LATITUDE')]))
+if what == "lcz":
+    d = json.loads(get("https://www.data.gouv.fr/api/1/datasets/6641c562e5acdb35c0e6051d/"))
+    zips = [r for r in d["resources"] if r["format"] == "zip"]
+    print(len(zips), "zips, total", sum(r.get("filesize") or 0 for r in zips) // 2**20, "Mo")
+    for r in d["resources"]:
+        if r["format"] != "zip": print("-", r["title"], r["format"], r.get("filesize"), r["url"])
+    print("titres :", sorted(r["title"] for r in zips))
+    url = next(r["url"] for r in zips if r["title"] == "lcz-spot-2022-albi.zip")
+    z = zipfile.ZipFile(io.BytesIO(get(url)))
+    for i in z.infolist(): print("  ", i.filename, i.file_size)
+    for n in z.namelist():
+        if n.lower().endswith(".dbf"): dbf(z.read(n))
+        if n.lower().endswith(".prj"): print("PRJ", z.read(n)[:300])
+        if n.lower().endswith(".tif"):
+            t = z.read(n); bo = "<" if t[:2] == b"II" else ">"
+            off = struct.unpack(bo + "I", t[4:8])[0]; nt = struct.unpack(bo + "H", t[off:off + 2])[0]
+            for k in range(nt):
+                tag, typ, cnt, val = struct.unpack(bo + "HHII", t[off + 2 + 12 * k: off + 14 + 12 * k])
+                print("  TIFF tag", tag, typ, cnt, val)
+        if n.lower().endswith((".csv", ".txt", ".xml")) and z.getinfo(n).file_size < 200000: print(n, z.read(n)[:1500])
+elif what == "xlsx":
+    xlsx(get(sys.argv[2]), int(sys.argv[3]) if len(sys.argv) > 3 else 8)
+elif what == "lines":
+    t = get(sys.argv[2]).decode("latin-1")
+    lines = t.splitlines(); print(len(lines), "lignes")
+    print("\n".join(lines[:4])); print("..."); print("\n".join(lines[len(lines)//2: len(lines)//2 + 3]))
+    print(collections.Counter(l.split(";")[0] for l in lines).most_common(5))
