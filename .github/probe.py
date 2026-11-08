@@ -85,3 +85,45 @@ elif what == "csvhead":
         print(" ", k, "| distincts", len(cnt), "| ex.", cnt.most_common(4))
     for r in rows:
         if any(x in ",".join(r) for x in ("Grenoble", "Chambéry", "Saint-Étienne", "Lyon")): print("  >", r[:40])
+elif what == "zipdir":
+    # répertoire central des archives par requêtes Range : tailles des membres sans tout télécharger
+    d = json.loads(get("https://www.data.gouv.fr/api/1/datasets/6641c562e5acdb35c0e6051d/"))
+    tot = collections.Counter()
+    for r in sorted((r for r in d["resources"] if r["format"] == "zip"), key=lambda r: r["title"]):
+        size = r.get("filesize")
+        req = urllib.request.Request(r["url"], headers={"User-Agent": "carteplan-probe", "Range": f"bytes={size - 65536}-{size - 1}"})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            tail = resp.read(); status = resp.status
+        i = tail.rfind(b"PK\x05\x06")
+        if i < 0: print(r["title"], "pas d'EOCD", status); continue
+        n, cd_size, cd_off = struct.unpack("<HII", tail[i + 10:i + 20])
+        if cd_off == 0xFFFFFFFF or n == 0xFFFF:
+            j = tail.rfind(b"PK\x06\x06"); cd_size, cd_off = struct.unpack("<QQ", tail[j + 40:j + 56])
+        cd = tail[len(tail) - (size - cd_off):] if size - cd_off <= len(tail) else None
+        if cd is None:
+            req = urllib.request.Request(r["url"], headers={"User-Agent": "carteplan-probe", "Range": f"bytes={cd_off}-{cd_off + cd_size - 1}"})
+            cd = urllib.request.urlopen(req, timeout=120).read()
+        k, mem = 0, []
+        while cd[k:k + 4] == b"PK\x01\x02":
+            meth, = struct.unpack("<H", cd[k + 10:k + 12]); csz, usz = struct.unpack("<II", cd[k + 20:k + 28])
+            fl, el, cl = struct.unpack("<HHH", cd[k + 28:k + 34]); name = cd[k + 46:k + 46 + fl].decode("utf-8", "replace")
+            mem.append((name, meth, csz, usz)); k += 46 + fl + el + cl
+        vec = [(nm, m, c, u) for nm, m, c, u in mem if nm.lower().endswith((".shp", ".dbf", ".shx"))]
+        for nm, m, c, u in vec: tot[nm[-3:].lower()] += c
+        print(r["title"], status, "|", "; ".join(f"{nm.split('/')[-1]} m{m} {c // 2**20}/{u // 2**20} Mo" for nm, m, c, u in vec))
+    print("total compressé (Mo) :", {k: v // 2**20 for k, v in tot.items()})
+elif what == "pdf":
+    import subprocess
+    open("/tmp/p.pdf", "wb").write(get(sys.argv[2]))
+    subprocess.run(["pdftotext", "-layout", "/tmp/p.pdf", "/tmp/p.txt"], check=True)
+    t = open("/tmp/p.txt", encoding="utf-8", errors="replace").read()
+    print(len(t), "caractères")
+    for m in re.finditer(r"(?i)(sensibilit|potentiel d.ICU|fortes? chaleur|lcz_int|champ|attribut|hre|bur |ror |ver |vhr)", t):
+        pass
+    lines = t.splitlines()
+    hits = [i for i, l in enumerate(lines) if re.search(sys.argv[3], l, re.I)]
+    shown = set()
+    for i in hits[:60]:
+        for j in range(max(0, i - 2), min(len(lines), i + 4)):
+            if j not in shown: print(f"{j}: {lines[j][:200]}"); shown.add(j)
+        print("  ~")

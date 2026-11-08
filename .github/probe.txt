@@ -1,5 +1,4 @@
-# sonde 3 : couverture LCZ par commune, APL (en-têtes), maternités (dernière année)
-https://www.insee.fr/	sh python3 .github/probe.py csvhead "https://static.data.gouv.fr/resources/cartographie-des-zones-climatiques-locales-lcz-des-93-territoires-de-plus-de-50-000-habitants-en-france/20260717-100717/couverture-lcz-sat-2022-fr.csv" | head -c 20000
-https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/530_l-accessibilite-potentielle-localisee-apl/attachments/indicateur_d_apl_aux_medecins_generalistes_xlsx" 6 6 "APL 2024"
-https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/530_l-accessibilite-potentielle-localisee-apl/attachments/indicateur_d_apl_aux_sages_femmes_xlsx" 6 6 "APL 2024"
-https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/fichier_maternites_112021/attachments/fichier_maternites_122025_mad_xlsx" 6 3 "2024|2025|ynth"
+# sonde 4 : tailles des shapefiles LCZ (Range), sensibilité aux fortes chaleurs (guides Cerema)
+https://www.insee.fr/	sh python3 .github/probe.py zipdir
+https://www.insee.fr/	sh sudo apt-get -qq install -y poppler-utils >/dev/null 2>&1; python3 .github/probe.py pdf "https://static.data.gouv.fr/resources/cartographie-des-zones-climatiques-locales-lcz-des-88-aires-urbaines-de-plus-de-50-000-habitants-de-france-metropolitaine/20260716-122737/faq-guide-utilisateur-vf4-260707.pdf" "sensibilit|fortes chaleurs|hre|bur|ror|vhr|ver\b|attribut"
+https://www.insee.fr/	sh python3 .github/probe.py pdf "https://static.data.gouv.fr/resources/cartographie-des-zones-climatiques-locales-lcz-des-88-aires-urbaines-de-plus-de-50-000-habitants-de-france-metropolitaine/20260716-122818/rapportmethodolcz-v3.pdf" "sensibilit|fortes chaleurs|attribut|\bhre\b|\bbur\b|\bror\b|\bvhr\b"
