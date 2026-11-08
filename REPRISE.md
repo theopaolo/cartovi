@@ -1,4 +1,4 @@
-# Reprise du projet Carteplan — état au 7 novembre 2026
+# Reprise du projet Carteplan — état au 8 novembre 2026
 
 Note de passation entre sessions de travail (à lire en premier par une nouvelle session).
 
@@ -44,12 +44,28 @@ Note de passation entre sessions de travail (à lire en premier par une nouvelle
 - Données communales v7 : `catnat_inond/sech/mer/mvt`, `risques` (DDRM, null pour la Drôme
   et le Puy-de-Dôme absents de GASPAR), `ppr`, `trait_cote` (320 communes).
 
+## Étape 2 (en cours) — climat futur officiel (8 novembre 2026)
+
+- **Fait** : TRACC-2023 de DRIAS (compte DRIAS de l'utilisateur, extraction du 08/11/2026)
+  versionnée dans `data/raw/drias/tracc2023/` (médiane Q50, référence + 3 niveaux,
+  7 indices : jours ≥ 35 °C et ≥ 30 °C, nuits tropicales, pluies d'été, pluie max en un
+  jour, danger météo de feu IFM > 40, sol sec SWI < 0,4). Source `tracc`
+  (`pipeline/sources/tracc.py`) : 5 indicateurs départementaux à +2,7 °C, moyenne des
+  communes pondérée par la population ; remplace Open-Meteo « jours chauds 2050 ».
+  Couche communale v8 : point de grille le plus proche (`tracc_pt`, 0 = hors grille,
+  Ouessant), valeurs à +2,7 °C ; groupe « Climat futur » du score ; trajectoire complète
+  dans la fiche Recherche (`web/data/climat/tracc.json`). Autotest `web/js/climat.test.mjs`.
+- **À demander à l'utilisateur** : extraire aussi les quantiles Q05 et Q95 (mêmes indices,
+  mêmes niveaux) et les déposer sous `Q05_<niveau>.csv` / `Q95_<niveau>.csv` : la fiche
+  affichera l'intervalle entre simulations (consigne des producteurs : jamais la médiane
+  seule). Vérifier aussi les conditions d'utilisation DRIAS (redistribution des fichiers bruts).
+- **Décision en attente** : Explore2 (débits futurs par commune, RARE, data.gouv) est marqué
+  « attention test » avec des défauts visibles ; recommandation : fiche seulement, hors score.
+- **Reste de l'étape 2** : LCZ Cerema (îlots de chaleur), EAIP/argiles (polygones).
+
 ## Prochaines étapes demandées
 
-- **Étape 2 — climat et eau officiels** : TRACC/DRIAS par commune (compte DRIAS, NetCDF :
-  décision utilisateur nécessaire) ; Explore2 par commune (jeu « test », ~150 Mo) ;
-  LCZ Cerema (îlots de chaleur, calcul hors ligne à committer comme table statique) ;
-  EAIP/argiles (polygones). Voir README, « Pistes non encore intégrées ».
+- **Étape 2 — suite** : voir ci-dessus (Q05/Q95, Explore2, LCZ, EAIP/argiles).
 - **Étape 3 — axe « bien-être présent »** façon IBV (Alternatives Économiques, juin 2026,
   approche par les capacités) reconstruit sur données ouvertes : Filosofi 2021, chômage et
   moins de 25 ans (RP 2022), APL médecins (DREES), loyers (carte des loyers 2025), logement
@@ -72,5 +88,5 @@ Note de passation entre sessions de travail (à lire en premier par une nouvelle
 ## Message pour démarrer une nouvelle session
 
 > Lis REPRISE.md et README.md du dépôt cartovi (branche ccr-74119e54-gru9fv), puis
-> propose-moi le plan de l'étape 2 (climat et eau officiels) en signalant les décisions
-> qui m'appartiennent (compte DRIAS, jeux « test », calculs hors ligne).
+> poursuis l'étape 2 (Q05/Q95 TRACC, Explore2, îlots de chaleur) ou l'étape 3 (axe
+> « bien-être présent »), en signalant les décisions qui m'appartiennent.
