@@ -43,6 +43,11 @@ jobs:
           ONLY: ${{ inputs.only }}
         run: python -m pipeline.build ${ONLY:+--only "$ONLY"}
 
+      - name: Vie locale (mensuelle) — SIRENE, associations, recensement, écoles, tiers-lieux, festivals
+        # ~4 Go de fichiers SIRENE lus en flux, une fois par mois ; la couche communale lit son résultat
+        continue-on-error: true
+        run: python -m pipeline.locale
+
       - name: Couche communale (mensuelle)
         # indépendante : son échec ne bloque pas la publication des indicateurs départementaux
         continue-on-error: true

@@ -29,13 +29,14 @@ from types import SimpleNamespace
 from . import datagouv, db, geo, territories
 from .http import Http
 from .util import communes as fetch_communes
+from . import locale
 from .sources import catnat, consoenaf, tracc
 from .util import dep_of_commune, norm_commune, position
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 9  # 9 : position de la mairie au lieu du centre géométrique ; 8 : climat futur TRACC (DRIAS) ; 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
+VERSION = 10  # 10 : vie locale (ESS, coopératives, associations, sans voiture, écoles, tiers-lieux, festivals) ; 9 : position de la mairie au lieu du centre géométrique ; 8 : climat futur TRACC (DRIAS) ; 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -53,6 +54,9 @@ SEVESO_SITES = ROOT / "web" / "data" / "risques" / "seveso.json"  # sous-produit
 NUCLEAR_SITES = Path(__file__).resolve().parent / "static" / "nuclear_sites.json"
 TRAIT_COTE = "66f2b36b0ef156e735cbe74a"  # liste des communes soumises au recul du trait de côte (décrets)
 CULTURE_RADIUS_KM = 15
+NEAR_RADIUS_KM = 5  # à vélo ou en bus : cinémas, scènes, collèges, lycées
+LOCAL_RADIUS_KM = 10  # bassin de vie : ESS, coopératives, associations, tiers-lieux
+FESTIVAL_RADIUS_KM = 15
 
 # Nuances ministérielles des listes de gauche aux européennes 2024.
 LEFT = {"LEXG", "LCOM", "LFI", "LSOC", "LUG", "LVEC", "LDVG"}
@@ -296,11 +300,15 @@ def prices(ctx):
 
 FINE = ("densite", "artif", "catnat", "nucleaire_km", "seveso_10km",
         "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt", "risques", "ppr", "trait_cote",
-        "tracc_pt", "tracc_km", *tracc.SCORED.values())
+        "tracc_pt", "tracc_km", *tracc.SCORED.values(),
+        "sans_voiture", "navette_douce", "ess", "coop", "assos",
+        "ess_1000_10km", "assos_1000_10km", "coop_10km", "tiers_lieux_10km", "festivals_15km", "college_5km", "lycee_5km")
+LOCALE = ("sans_voiture", "navette_douce", "ess", "coop", "assos", "ess_1000_10km", "assos_1000_10km", "coop_10km",
+          "tiers_lieux_10km", "festivals_15km", "college_5km", "lycee_5km")
 
 
 GROUPS = {"catnat": ("catnat", "catnat_inond", "catnat_sech", "catnat_mer", "catnat_mvt"), "risques": ("risques", "ppr"),
-          "tracc": ("tracc_pt", "tracc_km", *tracc.SCORED.values())}
+          "tracc": ("tracc_pt", "tracc_km", *tracc.SCORED.values()), "locale": LOCALE}
 
 
 def fine_grained(ctx, coms):
@@ -385,9 +393,43 @@ def fine_grained(ctx, coms):
                 for key, val in tracc.scored_values(data, pt).items():
                     out[tracc.SCORED[key]][c.code] = val
 
+    def vie_locale():
+        # pipeline.locale (SIRENE, RNA, recensement, éducation, tiers-lieux, festivals), généré avant
+        rows, meta = locale.load()
+        if not rows or not meta:
+            raise ValueError("web/data/locale/communes.json absent : lancer python -m pipeline.locale")
+        for c in coms:
+            v = rows.get(c.code, {})
+            out["sans_voiture"][c.code], out["navette_douce"][c.code] = v.get("sans_voiture"), v.get("navette_douce")
+            for k in ("ess", "coop", "assos"):
+                out[k][c.code] = v.get(k, 0)
+        # bassin de vie : structures et habitants des communes dont la mairie est à moins de 10 km
+        grid = Grid(LOCAL_RADIUS_KM)
+        for c in coms:
+            v = rows.get(c.code, {})
+            grid.add(c.x, c.y, (c.pop, v.get("ess", 0), v.get("assos", 0), v.get("coop", 0)))
+        for c in coms:
+            pop = ess = assos = coop = 0
+            for _, (p, e, a, k) in grid.near(c.x, c.y, LOCAL_RADIUS_KM):
+                pop, ess, assos, coop = pop + p, ess + e, assos + a, coop + k
+            if pop > 0:
+                out["ess_1000_10km"][c.code] = round(1000 * ess / pop, 2)
+                out["assos_1000_10km"][c.code] = round(1000 * assos / pop, 2)
+            out["coop_10km"][c.code] = coop
+        for key, col, radius in (("tiers_lieux", "tiers_lieux_10km", LOCAL_RADIUS_KM), ("festivals", "festivals_15km", FESTIVAL_RADIUS_KM),
+                                 ("college", "college_5km", NEAR_RADIUS_KM), ("lycee", "lycee_5km", NEAR_RADIUS_KM)):
+            pts = meta.get("points", {}).get(key) or []
+            if not pts:
+                continue
+            g = Grid(radius)
+            for lon, lat in pts:
+                g.add(*geo.lambert93(lon, lat), 1)
+            for c in coms:
+                out[col][c.code] = sum(1 for _ in g.near(c.x, c.y, radius))
+
     for name, fn in (("densite", densite), ("artif", artif), ("catnat", catnat_), ("nucleaire_km", nucleaire),
                      ("seveso_10km", seveso), ("risques", risques), ("trait_cote", trait_cote),
-                     ("tracc", climat_futur)):
+                     ("tracc", climat_futur), ("locale", vie_locale)):
         guarded(name, fn)
     ctx.log("  à la commune : " + ", ".join(f"{k} {len(v)}" for k, v in out.items()))
     return out
@@ -445,7 +487,7 @@ def build(ctx):
     for lon, lat, cats in culture:
         grid_cult.add(*geo.lambert93(lon, lat), cats)
 
-    columns = ["code", "nom", "dep", "pop", "x", "y", "prix", "gauche_commune", "gauche_10km", *CULTURE,
+    columns = ["code", "nom", "dep", "pop", "x", "y", "prix", "gauche_commune", "gauche_10km", *CULTURE, "cinemas_5km", "scenes_5km",
                "gare", "gare_km", "trains_jour", "villes", *FINE]
     by_region = {}
     for c in coms:
@@ -454,9 +496,12 @@ def build(ctx):
         for _, (l_, e_) in grid_vote.near(c.x, c.y, VOTE_RADIUS_KM):
             nl, ne = nl + l_, ne + e_
         cult = dict.fromkeys(CULTURE, 0)
-        for _, cats in grid_cult.near(c.x, c.y, CULTURE_RADIUS_KM):
+        near5 = {"cinemas": 0, "scenes": 0}
+        for km_, cats in grid_cult.near(c.x, c.y, CULTURE_RADIUS_KM):
             for k in cats:
                 cult[k] += 1
+                if km_ <= NEAR_RADIUS_KM and k in near5:
+                    near5[k] += 1
         near = sorted(grid_st.near(c.x, c.y, STATION_RADIUS_KM))
         reach = {}
         cost = {}
@@ -472,7 +517,7 @@ def build(ctx):
         row = [
             c.code, c.name, c.dep, c.pop, round(sx, 1), round(sy, 1), price.get(c.code),
             round(100 * lv / ev, 1) if ev else None, round(100 * nl / ne, 1) if ne else None,
-            *(cult[k] for k in CULTURE),
+            *(cult[k] for k in CULTURE), near5["cinemas"], near5["scenes"],
             stations[g[1]]["name"] if g else None, round(g[0], 1) if g else None,
             stations[g[1]]["departures"] if g else None,
             {str(k): list(v) for k, v in sorted(reach.items())},
@@ -486,7 +531,9 @@ def build(ctx):
         "reference_day": f"{day[:4]}-{day[4:6]}-{day[6:]}",
         "viewBox": f"0 0 1000 {height:.0f}",
         "radius_km": {"gare": STATION_RADIUS_KM, "vote": VOTE_RADIUS_KM, "culture": CULTURE_RADIUS_KM,
-                      "seveso": SEVESO_RADIUS_KM},
+                      "seveso": SEVESO_RADIUS_KM, "proche": NEAR_RADIUS_KM, "local": LOCAL_RADIUS_KM,
+                      "festival": FESTIVAL_RADIUS_KM},
+        "locale": (locale.load()[1] or {}).get("sources"),
         "hubs": [{**h, "x": round(tr(*geo.lambert93(h["lon"], h["lat"]))[0], 1),
                   "y": round(tr(*geo.lambert93(h["lon"], h["lat"]))[1], 1)} for h in hubs],
         "columns": columns,
