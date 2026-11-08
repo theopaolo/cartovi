@@ -91,8 +91,8 @@ d'Explore2-Climat.
   `data/raw/drias/tracc2023/` (voir son `LISEZMOI.md`). Le pipeline les lit sans réseau.
   L'empreinte des fichiers sert de version de méthode : une nouvelle extraction (ou
   l'ajout des quantiles Q05 et Q95) relance le calcul au passage suivant du CI.
-- **Rattachement.** Une commune prend la valeur du point de grille le plus proche de son
-  centre (3 km en médiane, 7,5 km au plus). Au-delà de 8 km, aucun point ne la
+- **Rattachement.** Une commune prend la valeur du point de grille le plus proche de sa
+  mairie (3 km en médiane, 7,5 km au plus). Au-delà de 8 km, aucun point ne la
   représente : Ouessant et l'île de Sein retombent sur la valeur du département. Un
   département prend la moyenne de ses communes pondérée par la population, soit
   l'exposition de l'habitant moyen et non celle de la surface (les sommets inhabités ne
@@ -150,13 +150,19 @@ Pour chaque valeur : médiane des simulations et intervalle q05–q95. Sortie :
 
 ## Couche communale : chercher une commune
 
+**Position d'une commune : sa mairie.** Toutes les distances (gare, villes de référence,
+sites Seveso, centrales, lieux culturels, point de la grille climatique) partent de la
+mairie fournie par geo.api.gouv.fr. Le « centre » de cette même API est le centre
+géométrique du territoire : pour une très grande commune, il tombe loin de la ville
+(Arles : en Camargue, à 15 km de la mairie), ce qui faussait tous ses résultats.
+
 `python -m pipeline.communes` (mensuel, dans le même workflow) produit
 `web/data/communes/<code région>.json`, exploité par la page `communes.html`. Les
 critères y sont des **filtres réglables**, pas un score.
 
 | Critère | Calcul | Source |
 |---|---|---|
-| Train vers une ville | trajet **direct** le plus court et nombre de trains directs, un mardi ou jeudi type, vers chaque commune de ≥ 50 000 habitants (gares à moins de 5 km de son centre) ; gare choisie dans un rayon de 6 km, chaque km d'accès coûtant 3 min | GTFS national SNCF (TER, Intercités, TGV ; cars exclus) |
+| Train vers une ville | trajet **direct** le plus court et nombre de trains directs, un mardi ou jeudi type, vers chaque commune de ≥ 50 000 habitants (gares à moins de 5 km de sa mairie) ; gare choisie dans un rayon de 6 km, chaque km d'accès coûtant 3 min | GTFS national SNCF (TER, Intercités, TGV ; cars exclus) |
 | Climat politique | part des voix des listes de gauche (LFI, PS-Place publique, Écologistes, PCF, extrême et divers gauche) aux européennes 2024, dans la commune et dans un rayon de 10 km | ministère de l'Intérieur |
 | Offre culturelle | cinémas, scènes, lieux labellisés (scène nationale, SMAC, CDN…), musées, librairies, conservatoires à moins de 15 km | Basilic, ministère de la Culture |
 | Prix | médiane du prix au m² des maisons (≥ 10 ventes ; Paris, Lyon, Marseille agrégés depuis leurs arrondissements) | Statistiques DVF |

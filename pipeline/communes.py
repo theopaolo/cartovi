@@ -30,12 +30,12 @@ from . import datagouv, db, geo, territories
 from .http import Http
 from .util import communes as fetch_communes
 from .sources import catnat, consoenaf, tracc
-from .util import dep_of_commune, norm_commune
+from .util import dep_of_commune, norm_commune, position
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "communes"
 MAX_AGE_DAYS = 28
-VERSION = 8  # 8 : climat futur TRACC (DRIAS) ; 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
+VERSION = 9  # 9 : position de la mairie au lieu du centre géométrique ; 8 : climat futur TRACC (DRIAS) ; 7 : DDRM/PPR « non renseigné » par département absent ; 6 : trait de côte ; 5 : CatNat par aléa
 ACCESS_MIN_PER_KM = 3  # pour départager deux gares : ~vélo ou voiture en ville
 
 GTFS = "https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942"
@@ -409,8 +409,9 @@ def build(ctx):
     coms = []
     for c in fetch_communes(ctx):
         dep = dep_of_commune(c.get("code"))
-        if dep in terrs and c.get("centre"):
-            lon, lat = c["centre"]["coordinates"]
+        pos = position(c)
+        if dep in terrs and pos:
+            lon, lat = pos
             x, y = geo.lambert93(lon, lat)
             coms.append(SimpleNamespace(code=c["code"], name=c.get("nom", ""), dep=dep,
                                         pop=c.get("population") or 0, surface_ha=c.get("surface") or 0,

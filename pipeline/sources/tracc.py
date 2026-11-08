@@ -13,8 +13,8 @@ personnalisée ») : ils sont extraits une fois, versionnés tels quels dans
 dossier) et lus ici sans réseau. L'empreinte des fichiers sert de version de méthode :
 ajouter les quantiles Q05/Q95 ou une nouvelle extraction relance le calcul.
 
-Rattachement : une commune prend la valeur du point de grille le plus proche de son
-centre ; un département, la moyenne de ses communes pondérée par la population
+Rattachement : une commune prend la valeur du point de grille le plus proche de sa
+mairie ; un département, la moyenne de ses communes pondérée par la population
 (l'exposition de l'habitant moyen, pas celle de la surface).
 """
 
@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 from .. import geo
-from ..util import communes, dep_of_commune
+from ..util import communes, dep_of_commune, position
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 RAW = ROOT / "data" / "raw" / "drias" / "tracc2023"
@@ -106,9 +106,12 @@ def _files():
     return out
 
 
+METHOD = 2  # 2 : communes placées à leur mairie (et non au centre géométrique)
+
+
 def fingerprint():
     """Version de méthode dérivée des fichiers : toute nouvelle extraction relance le calcul."""
-    h = hashlib.sha256()
+    h = hashlib.sha256(f"methode {METHOD}".encode())
     for (q, lv), f in sorted(_files().items()):
         h.update(f"{q}_{lv}".encode())
         h.update(f.read_bytes())
@@ -257,8 +260,9 @@ def fetch(ctx):
     coms = []
     for c in communes(ctx):
         dep = dep_of_commune(c.get("code"))
-        if dep in ctx.territories and c.get("centre"):
-            lon, lat = c["centre"]["coordinates"]
+        pos = position(c)
+        if dep in ctx.territories and pos:
+            lon, lat = pos
             coms.append(_Com(c["code"], dep, c.get("population") or 0, lon, lat))
     assigned = by_commune(coms, data, grid)
     ctx.log(f"  {len(assigned)}/{len(coms)} communes rattachées à un point de grille ; "

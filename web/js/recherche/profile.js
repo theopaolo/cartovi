@@ -140,7 +140,7 @@ function terres(c, R) {
       { id: 'artif', label: 'Artificialisation récente', ...val(c.artif, (v) => `${fmtNumber(v, 1)}${NBSP}ha/an pour 100${NBSP}km²`, 'moyenne sur 5 ans') },
       // le total n'est donné que sans le détail par aléa (anciennes données) : sinon la section « Risques » le remplace
       ...(CATNAT_KINDS.some((k) => Number.isFinite(c[k.col])) ? [] : [{ id: 'catnat', label: 'Catastrophes naturelles reconnues', ...val(c.catnat, (v) => plural(v, 'arrêté'), 'sur 20 ans') }]),
-      { id: 'nucleaire_km', label: 'Centrale nucléaire la plus proche', ...val(c.nucleaire_km, fmtKm, 'à vol d’oiseau, depuis le centre de la commune') },
+      { id: 'nucleaire_km', label: 'Centrale nucléaire la plus proche', ...val(c.nucleaire_km, fmtKm, 'à vol d’oiseau, depuis la mairie') },
       { id: 'seveso_10km', label: `Sites Seveso à moins de ${R.seveso}${NBSP}km`, ...val(c.seveso_10km, (v) => plural(v, 'site')) },
     ],
     note: 'Valeurs de la commune, à ne pas confondre avec celles du département plus bas. Sources : Cerema (artificialisation), GASPAR (catastrophes naturelles), Géorisques (Seveso), ASNR (centrales), INSEE (population et surface).',

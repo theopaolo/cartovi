@@ -1,20 +1,7 @@
-# 1. position des mairies (geo.api) : champ « mairie » ?
-https://geo.api.gouv.fr/communes?code=13004&fields=code,nom,centre,mairie,surface&format=json	.
-https://geo.api.gouv.fr/communes?fields=code,mairie,centre&format=json	{n: length, sans_mairie: [.[] | select(.mairie == null) | .code] | length, ex: [.[] | select(.mairie == null) | .code][0:10]}
-# 2. API Recherche d'entreprises : filtres ESS, SIAE, coopératives, spectacle
-https://recherche-entreprises.api.gouv.fr/search?est_ess=true&code_commune=26362&etat_administratif=A&per_page=1	{total_results, ex: .results[0] | {nom_complet, nature_juridique, complements, matching_etablissements: (.matching_etablissements | length)}}
-https://recherche-entreprises.api.gouv.fr/openapi.json	sh python3 -c "import json;d=json.load(open('/tmp/r'));p=d['paths'];k=[x for x in p if 'search' in x][0];print(k);print([(q['name'],q.get('description','')[:90]) for q in p[k]['get']['parameters']])"
-# 3. Sirene (stock) et RNA sur data.gouv
-https://www.data.gouv.fr/api/1/datasets/base-sirene-des-entreprises-et-de-leurs-etablissements-siren-siret/	[.resources[] | {title, format, filesize, last_modified: .last_modified[0:10]}][0:14]
-https://www.data.gouv.fr/api/1/datasets/repertoire-national-des-associations/	[.resources[] | {title, format, filesize, url, last_modified: .last_modified[0:10]}][0:8]
-# 4. Recensement : ménages sans voiture, mode de transport domicile-travail
-https://www.data.gouv.fr/api/1/datasets/?q=base%20comparateur%20de%20territoires%20logement&page_size=8	[.data[] | {title, id, org: .organization.name}]
-https://www.data.gouv.fr/api/1/datasets/?q=recensement%20population%20mobilite%20domicile%20travail%20commune&page_size=8	[.data[] | {title, id, org: .organization.name}]
-https://www.insee.fr/fr/statistiques/zones/8268806	sh head -c 300 /tmp/r; echo; grep -o 'href="[^"]*\(csv\|zip\)[^"]*"' /tmp/r | head -20
-https://www.insee.fr/fr/recherche?q=base-cc-logement&debut=0	sh grep -o 'statistiques/[0-9]\{6,8\}[^"]*"[^<]\{0,160\}' /tmp/r | head -20
-# 5. Festivals, tiers-lieux, ESS, annuaire de l'éducation
-https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets/panorama-des-festivals/records?limit=1	{total_count, fields: (.results[0] | keys)}
-https://www.data.gouv.fr/api/1/datasets/?q=tiers-lieux&page_size=10	[.data[] | {title, id, org: .organization.name, res: [.resources[] | {format, filesize}][0:3]}]
-https://www.data.gouv.fr/api/1/datasets/?q=economie%20sociale%20et%20solidaire%20etablissements&page_size=10	[.data[] | {title, id, org: .organization.name}]
-https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records?limit=1	{total_count, fields: (.results[0] | keys)}
-https://www.data.gouv.fr/api/1/datasets/?q=scop%20scic%20cooperatives&page_size=8	[.data[] | {title, id, org: .organization.name}]
+# Sources pour « dynamique locale », « sans voiture », culture, écoles
+https://api.insee.fr/melodi/catalog/all	sh python3 .github/probe.py melodi
+https://www.insee.fr/fr/information/2028129	sh python3 .github/probe.py cj
+https://www.data.gouv.fr/api/1/datasets/6a97e79385c92876997291c8/	sh python3 .github/probe.py tl
+https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets?where=search(default,%22festival%22)&limit=10&select=dataset_id,default.title,default.records_count	.
+https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records?limit=1	sh head -c 2500 /tmp/r
+https://media.interieur.gouv.fr/rna/rna_import_20261001.zip	sh python3 .github/probe.py rna

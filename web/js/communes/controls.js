@@ -141,7 +141,7 @@ export function createControls(root, { index, onChange, onReset, onCopy }) {
   const sKm = slider({
     key: 'kmMax',
     label: 'Distance à la gare',
-    note: `À vol d’oiseau, depuis le centre de la commune (gares à moins de ${R.gare}${NBSP}km).`,
+    note: `À vol d’oiseau, depuis la mairie de la commune (gares à moins de ${R.gare}${NBSP}km).`,
     stops: STOPS.kmMax,
     text: (v) => (v < Infinity ? `${num(v)}${NBSP}km maximum` : `jusqu’à ${R.gare}${NBSP}km`),
     off: (v) => v === Infinity,

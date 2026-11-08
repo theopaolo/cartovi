@@ -72,7 +72,7 @@ export function cellText(ind, cell) {
 /** Note sur le point de grille utilisé pour une commune. */
 export function pointNote(c) {
   if (!c.tracc_pt) return null; // null : donnée absente ; 0 : aucun point de grille à moins de 8 km
-  return `Point de grille à ${fmtNumber(c.tracc_km, 1)}${NBSP}km du centre de la commune.`;
+  return `Point de grille à ${fmtNumber(c.tracc_km, 1)}${NBSP}km de la mairie.`;
 }
 
 /** true si la couche communale porte le climat futur (sinon : données d'avant la TRACC, ou commune sans point de grille). */

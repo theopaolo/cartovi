@@ -15,7 +15,7 @@ requise (CC BY 4.0).
 import time
 
 from .. import territories as terr
-from ..util import Deferred, communes, complete_years, dep_of_commune
+from ..util import Deferred, communes, complete_years, dep_of_commune, position
 
 ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 CHUNK = 60  # points par requête : reste sous la limite de 5 000 par requête
@@ -33,8 +33,9 @@ def _points(ctx):
         by_dep = {}
         for c in communes(ctx):
             dep = dep_of_commune(c.get("code"))
-            if dep in ctx.territories and c.get("population") and c.get("centre"):
-                by_dep.setdefault(dep, []).append((c["population"], *c["centre"]["coordinates"]))
+            pos = position(c)
+            if dep in ctx.territories and c.get("population") and pos:
+                by_dep.setdefault(dep, []).append((c["population"], *pos))
         for dep, items in by_dep.items():
             items.sort()
             total, acc, picked = sum(i[0] for i in items), 0, []
@@ -101,7 +102,7 @@ class Recent:
         "licence": "CC BY 4.0",
         "refresh": "mensuel",
         "max_age_days": 30,
-        "version": 3,  # 2-3 : points de population au lieu d'une grille
+        "version": 4,  # 2-3 : points de population au lieu d'une grille ; 4 : mairies
     }
     YEARS = 5
     INDICATORS = [
