@@ -67,6 +67,21 @@ Note de passation entre sessions de travail (à lire en premier par une nouvelle
   signale : reposer alors la question du score à l'utilisateur.
 - **Reste de l'étape 2** : LCZ Cerema (îlots de chaleur), EAIP/argiles (polygones).
 
+## Vie locale et position des communes (8 novembre 2026, soir)
+
+- **Mairie au lieu du centre géométrique** (`util.position`) : Arles et toutes les grandes
+  communes étaient placées loin de leur ville. Couche communale v9+.
+- **Vie locale** (`pipeline/locale.py`, mensuel, ~25 min dont SIRENE) : ESS, coopératives,
+  associations, trajets domicile-travail sans voiture, collèges/lycées, tiers-lieux, festivals ;
+  parties indépendantes reprises séparément. Critères du score à 0 par défaut (préférences),
+  section « Vie locale et mobilité » dans la fiche, la comparaison et le détail.
+- **Problème ouvert** : la part des ménages sans voiture (Melodi DS_RP_LOGEMENT_PRINC) arrive
+  tronquée (24,5 Mo sur 98, 7 447 communes) ; la garde de couverture la rejette. Pistes :
+  reprise par en-tête Range, ou API de données Melodi filtrée (CARS, OCS, TIME_PERIOD).
+- Analyse demandée par l'utilisateur (communes à ≤ 2 h de Lyon ou d'Aix, vie sans voiture,
+  ESS, culture de ville moyenne, climat vivable) : script de travail dans le dossier de
+  session, résultats donnés dans la conversation.
+
 ## Prochaines étapes demandées
 
 - **Étape 2 — suite** : voir ci-dessus (Q05/Q95, Explore2, LCZ, EAIP/argiles).
