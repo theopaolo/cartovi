@@ -1,7 +1,5 @@
-# Sources pour « dynamique locale », « sans voiture », culture, écoles
-https://api.insee.fr/melodi/catalog/all	sh python3 .github/probe.py melodi
-https://www.insee.fr/fr/information/2028129	sh python3 .github/probe.py cj
-https://www.data.gouv.fr/api/1/datasets/6a97e79385c92876997291c8/	sh python3 .github/probe.py tl
-https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets?where=search(default,%22festival%22)&limit=10&select=dataset_id,default.title,default.records_count	.
-https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records?limit=1	sh head -c 2500 /tmp/r
-https://media.interieur.gouv.fr/rna/rna_import_20261001.zip	sh python3 .github/probe.py rna
+https://api.insee.fr/melodi/catalog/DS_BPE	sh python3 .github/probe.py melodi
+https://www.insee.fr/	sh python3 .github/probe.py tl
+https://www.insee.fr/	sh python3 .github/probe.py cj
+https://www.insee.fr/	sh python3 .github/probe.py fest
+https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records?limit=1	sh python3 -c "import gzip,json;b=open('/tmp/r','rb').read();b=gzip.decompress(b) if b[:2]==b'\x1f\x8b' else b;d=json.loads(b);print(d['total_count'], sorted(d['results'][0]))"
