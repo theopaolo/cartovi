@@ -398,24 +398,29 @@ def fine_grained(ctx, coms):
         rows, meta = locale.load()
         if not rows or not meta:
             raise ValueError("web/data/locale/communes.json absent : lancer python -m pipeline.locale")
+        have = {p: bool((meta.get("parts") or {}).get(p, {}).get("data")) for p in ("sirene", "rna")}
+        # une commune absente d'une partie calculée n'a aucune structure (0) ; partie absente : null
+        val = lambda v, k, part: v.get(k) if v.get(k) is not None else (0 if have[part] else None)
         for c in coms:
             v = rows.get(c.code, {})
             out["sans_voiture"][c.code], out["navette_douce"][c.code] = v.get("sans_voiture"), v.get("navette_douce")
-            for k in ("ess", "coop", "assos"):
-                out[k][c.code] = v.get(k, 0)
+            for k, part in (("ess", "sirene"), ("coop", "sirene"), ("assos", "rna")):
+                out[k][c.code] = val(v, k, part)
         # bassin de vie : structures et habitants des communes dont la mairie est à moins de 10 km
         grid = Grid(LOCAL_RADIUS_KM)
         for c in coms:
             v = rows.get(c.code, {})
-            grid.add(c.x, c.y, (c.pop, v.get("ess", 0), v.get("assos", 0), v.get("coop", 0)))
+            grid.add(c.x, c.y, (c.pop, val(v, "ess", "sirene") or 0, val(v, "assos", "rna") or 0, val(v, "coop", "sirene") or 0))
         for c in coms:
             pop = ess = assos = coop = 0
             for _, (p, e, a, k) in grid.near(c.x, c.y, LOCAL_RADIUS_KM):
                 pop, ess, assos, coop = pop + p, ess + e, assos + a, coop + k
-            if pop > 0:
+            if pop > 0 and have["sirene"]:
                 out["ess_1000_10km"][c.code] = round(1000 * ess / pop, 2)
+            if pop > 0 and have["rna"]:
                 out["assos_1000_10km"][c.code] = round(1000 * assos / pop, 2)
-            out["coop_10km"][c.code] = coop
+            if have["sirene"]:
+                out["coop_10km"][c.code] = coop
         for key, col, radius in (("tiers_lieux", "tiers_lieux_10km", LOCAL_RADIUS_KM), ("festivals", "festivals_15km", FESTIVAL_RADIUS_KM),
                                  ("college", "college_5km", NEAR_RADIUS_KM), ("lycee", "lycee_5km", NEAR_RADIUS_KM)):
             pts = meta.get("points", {}).get(key) or []
@@ -590,6 +595,13 @@ def main(argv=None):
     except (OSError, ValueError):
         version = None
     fresh = last and (today - datetime.date.fromisoformat(last[:10])).days < MAX_AGE_DAYS
+    # la vie locale (pipeline.locale) a été régénérée depuis : on reconstruit pour l'intégrer
+    try:
+        built = json.loads((OUT / "index.json").read_text("utf-8")).get("generated_at", "")
+        loc = (locale.load()[1] or {}).get("generated_at", "")
+        fresh = fresh and not (loc and loc > built)
+    except (OSError, ValueError):
+        pass
     if not args.force and fresh and version == VERSION:
         if not (OUT / "noms.json").exists():
             print(f"index de recherche : {rebuild_search_index()} communes")

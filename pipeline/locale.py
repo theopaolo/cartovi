@@ -207,12 +207,18 @@ def _melodi(ctx, ds, workdir):
     """Fichier national d'un jeu Melodi (zip : données + métadonnées), millésime le plus récent."""
     for year in RP_YEARS:
         path = workdir / f"{ds}.zip"
-        try:
-            download(MELODI.format(ds=ds, year=year), path, ctx.log, retries=1)
-            return path, year
-        except RuntimeError:
-            continue
-    raise LookupError(f"{ds} : aucun millésime parmi {RP_YEARS}")
+        for attempt in range(3):
+            try:
+                download(MELODI.format(ds=ds, year=year), path, ctx.log, retries=0)
+            except RuntimeError:
+                break  # millésime absent (404) : le précédent
+            if zipfile.is_zipfile(path):
+                return path, year
+            # Melodi limite le nombre d'appels par minute et répond alors autre chose qu'une archive
+            head = path.read_bytes()[:200]
+            ctx.log(f"    {ds} {year} : réponse inattendue ({head!r}), nouvel essai dans 65 s")
+            time.sleep(65)
+    raise LookupError(f"{ds} : aucun millésime exploitable parmi {RP_YEARS}")
 
 
 def _melodi_rows(path):
@@ -327,46 +333,110 @@ def festivals(ctx):
     return out
 
 
-def build(ctx, workdir):
+# Parties calculées et conservées séparément : une source en panne n'emporte pas les autres, et
+# l'exécution suivante ne refait que les parties absentes ou de plus de MAX_AGE_DAYS jours.
+PARTS = ("sirene", "rna", "navettes", "voiture", "education", "tiers_lieux", "festivals")
+
+
+def _sirene(ctx, workdir):
     sir = datagouv.dataset(ctx.http, SIRENE)["resources"]
+    # titre exact « Sirene : Fichier StockUniteLegale - <date> » : le fichier « …Historique » a le même début
     pick = lambda prefix: max((r for r in sir if r["title"].startswith(prefix) and (r.get("format") or "").lower() == "zip"),
                               key=lambda r: r.get("last_modified") or "")
-    ul, et = pick("Sirene : Fichier StockUniteLegale"), pick("Sirene : Fichier StockEtablissement -")
-    rna = max((r for r in datagouv.dataset(ctx.http, RNA)["resources"] if re.search(r"rna_waldec_\d{8}\.zip$", r["url"])),
-              key=lambda r: r["url"])
-    sources = {"sirene_ul": ul["title"], "sirene_etab": et["title"], "rna": rna["title"]}
-    for key, r in (("ul", ul), ("et", et), ("rna", rna)):
+    ul, et = pick("Sirene : Fichier StockUniteLegale - "), pick("Sirene : Fichier StockEtablissement - ")
+    for key, r in (("ul", ul), ("et", et)):
         t0 = time.time()
         download(r["url"], workdir / f"{key}.zip", ctx.log)
         ctx.log(f"  {r['title']} : {os.path.getsize(workdir / f'{key}.zip') / 1e6:.0f} Mo en {time.time() - t0:.0f}s")
     units = ess_units(workdir / "ul.zip", ctx.log)
     (workdir / "ul.zip").unlink()
     ess = ess_by_commune(workdir / "et.zip", units, ctx.log)
-    del units
     (workdir / "et.zip").unlink()
-    assos = assos_by_commune(workdir / "rna.zip", ctx.today, ctx.log)
+    return ess, f"{ul['title']} ; {et['title']}"
+
+
+def _rna(ctx, workdir):
+    r = max((r for r in datagouv.dataset(ctx.http, RNA)["resources"] if re.search(r"rna_waldec_\d{8}\.zip$", r["url"])),
+            key=lambda r: r["url"])
+    download(r["url"], workdir / "rna.zip", ctx.log)
+    out = assos_by_commune(workdir / "rna.zip", ctx.today, ctx.log)
     (workdir / "rna.zip").unlink()
-    nav_path, nav_year = _melodi(ctx, "DS_RP_NAVETTES_PRINC", workdir)
-    douce = navettes(nav_path, nav_year, ctx.log)
-    log_path, log_year = _melodi(ctx, "DS_RP_LOGEMENT_PRINC", workdir)
-    sv = sans_voiture(log_path, log_year, ctx.log)
-    sources.update(recensement=f"RP {log_year} (INSEE, Melodi)", education="Annuaire de l'éducation",
-                   tiers_lieux="Recensement des tiers-lieux 2026 (France Tiers-Lieux)",
-                   festivals="Panorama des festivals (ministère de la Culture)")
-    points = {**education(ctx), "tiers_lieux": tiers_lieux(ctx), "festivals": festivals(ctx)}
+    return out, r["title"]
+
+
+def _rp(ctx, workdir, ds, fn):
+    path, year = _melodi(ctx, ds, workdir)
+    out = fn(path, year, ctx.log)
+    path.unlink()
+    return out, f"recensement {year} (INSEE, Melodi {ds})"
+
+
+COMPUTE = {
+    "sirene": _sirene,
+    "rna": _rna,
+    "navettes": lambda ctx, w: _rp(ctx, w, "DS_RP_NAVETTES_PRINC", navettes),
+    "voiture": lambda ctx, w: _rp(ctx, w, "DS_RP_LOGEMENT_PRINC", sans_voiture),
+    "education": lambda ctx, w: (education(ctx), "Annuaire de l'éducation (collèges, lycées ouverts)"),
+    "tiers_lieux": lambda ctx, w: (tiers_lieux(ctx), "Recensement des tiers-lieux 2026 (France Tiers-Lieux)"),
+    "festivals": lambda ctx, w: (festivals(ctx), "Panorama des festivals (ministère de la Culture)"),
+}
+
+
+def _old_parts(today, force):
+    try:
+        d = json.loads(OUT.read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if d.get("version") != VERSION:
+        return {}
+    keep = {}
+    for name, part in (d.get("parts") or {}).items():
+        age = (today - datetime.date.fromisoformat(part["date"])).days
+        if not force and age < MAX_AGE_DAYS:
+            keep[name] = part
+        else:
+            keep[name] = {**part, "stale": True}
+    return keep
+
+
+def build(ctx, workdir, force=False):
+    """Recalcule les parties absentes ou périmées ; renvoie (communes, parties en échec)."""
+    parts = _old_parts(ctx.today, force)
+    failed = []
+    for name in PARTS:
+        if name in parts and not parts[name].get("stale"):
+            ctx.log(f"→ {name} : à jour ({parts[name]['date']})")
+            continue
+        ctx.log(f"→ {name}")
+        try:
+            data, source = COMPUTE[name](ctx, workdir)
+            parts[name] = {"date": ctx.today.isoformat(), "source": source, "data": data}
+        except Exception as e:  # noqa: BLE001 — une partie en échec garde sa dernière valeur, signalée périmée
+            failed.append(f"{name} ({type(e).__name__}: {e})")
+            ctx.log(f"  ERREUR {name} : {type(e).__name__}: {e}")
+        for f in workdir.glob("*.zip"):
+            f.unlink()
+    get = lambda name: (parts.get(name) or {}).get("data") or {}
+    ess, assos, douce, sv = get("sirene"), get("rna"), get("navettes"), get("voiture")
     codes = sorted(set(ess) | set(assos) | set(douce) | set(sv))
-    rows = {c: [*ess.get(c, [0, 0, 0]), assos.get(c, 0), sv.get(c), douce.get(c)] for c in codes}
+    # une commune absente d'un fichier SIRENE ou RNA calculé n'a aucune structure (0) ; si la partie manque, null
+    zero = lambda name, v: v if v is not None else (0 if get(name) else None)
+    rows = {c: [*(ess.get(c) or [zero("sirene", None)] * 3), zero("rna", assos.get(c)), sv.get(c), douce.get(c)] for c in codes}
+    points = {"college": get("education").get("college", []), "lycee": get("education").get("lycee", []),
+              "tiers_lieux": get("tiers_lieux") or [], "festivals": get("festivals") or []}
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
         "version": VERSION,
         "generated_at": db.now(),
-        "sources": sources,
+        "sources": {n: {k: p[k] for k in ("date", "source")} | ({"stale": True} if p.get("stale") else {})
+                    for n, p in parts.items()},
         "assos_years": ASSOS_YEARS,
         "columns": COLUMNS,
         "rows": rows,
         "points": points,
+        "parts": parts,
     }, ensure_ascii=False, separators=(",", ":")), "utf-8")
-    return len(rows)
+    return len(rows), failed
 
 
 def load():
@@ -385,14 +455,6 @@ def main(argv=None):
     p.add_argument("--db", default=ROOT / "data" / "carteplan.sqlite", type=Path)
     args = p.parse_args(argv)
     today = datetime.date.today()
-    try:
-        old = json.loads(OUT.read_text("utf-8"))
-        fresh = old.get("version") == VERSION and (today - datetime.date.fromisoformat(old["generated_at"][:10])).days < MAX_AGE_DAYS
-    except (OSError, ValueError, KeyError):
-        fresh = False
-    if fresh and not args.force:
-        print(f"vie locale à jour ({old['generated_at'][:10]}), rien à faire")
-        return 0
     if not COOP_CJ:
         print("ERREUR : liste des catégories juridiques coopératives vide")
         return 1
@@ -401,10 +463,10 @@ def main(argv=None):
     started = db.now()
     with tempfile.TemporaryDirectory(prefix="carteplan-locale-") as tmp:
         try:
-            n = build(ctx, Path(tmp))
-            db.log_run(con, "locale", started, "ok", n)
-            print(f"{n} communes → {OUT}")
-            code = 0
+            n, failed = build(ctx, Path(tmp), force=args.force)
+            db.log_run(con, "locale", started, "error" if failed else "ok", n, "; ".join(failed))
+            print(f"{n} communes → {OUT}" + (f" ; en échec : {'; '.join(failed)}" if failed else ""))
+            code = 1 if failed else 0
         except Exception as e:  # noqa: BLE001
             db.log_run(con, "locale", started, "error", 0, f"{type(e).__name__}: {e}")
             print(f"ERREUR : {type(e).__name__}: {e}")
