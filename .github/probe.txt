@@ -1,2 +1,2 @@
-# Étape 2 : jeux Explore2 TRACC par commune (RARE, data.gouv)
-https://www.data.gouv.fr/api/1/datasets/69848339e734f1ba1e7f3217/	sh pip -q install pypdf >/dev/null 2>&1; python3 .github/probe.py
+# Explore2 : fichiers communaux (structure)
+https://www.data.gouv.fr/api/1/datasets/69848339e734f1ba1e7f3217/	sh python3 .github/probe.py
