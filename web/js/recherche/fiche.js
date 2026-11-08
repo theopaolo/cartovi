@@ -1,6 +1,6 @@
 // fiche.js — fiche d'une commune : les sections du profil (profile.js), chacune avec unité, période et source.
 import { SCORED_LEVEL, cellText } from '../climat.js';
-import { eauCellText } from '../eau.js';
+import { eauCellText, provenanceSentence } from '../eau.js';
 import { h } from '../dom.js';
 import { NBSP, fmtDate, fmtNumber } from '../format.js';
 import { staleBadge } from '../panel.js';
@@ -85,7 +85,7 @@ function section(s) {
   } else if (s.id === 'futur' && s.trajectory) {
     out.append(trajectoryTable(s.trajectory));
   } else if (s.id === 'eau' && s.eau) {
-    out.append(testNote(s.test), eauTable(s.eau), h('p', { class: 'muted small' }, `Valeurs issues des ${s.eau.provText}.`));
+    out.append(testNote(s.test), eauTable(s.eau), h('p', { class: 'muted small' }, provenanceSentence(s.eau.prov)));
   } else if (s.id === 'eau') {
     out.append(testNote(s.test), rows(s.rows));
   } else {

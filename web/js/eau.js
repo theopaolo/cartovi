@@ -53,6 +53,13 @@ export function eauOf(index, depData, code) {
   };
 }
 
+/** Phrase sur l'origine des valeurs, d'après le classement du producteur (colonne « donnees_issues_territoire »). */
+export function provenanceSentence(prov) {
+  if (prov === 0) return 'Valeurs issues du bassin versant de la commune (classement du producteur).';
+  const where = prov === 1 ? 'proche' : 'éloigné';
+  return `Valeurs non issues du territoire de la commune : elles viennent d’un bassin versant ${where} (classement du producteur).`;
+}
+
 const MINUS = '−';
 /** Écart signé : « +12 % », « −8 % », « +3 j » ; 0 sans signe. */
 export function fmtDelta(v, unit) {

@@ -1,6 +1,6 @@
 // Autotest : node web/js/eau.test.mjs — lecture d'une commune dans les fichiers Explore2 (structure de pipeline/explore2.py).
 import assert from 'node:assert/strict';
-import { eauCellText, eauOf, fmtDelta } from './eau.js';
+import { eauCellText, eauOf, fmtDelta, provenanceSentence } from './eau.js';
 
 const index = {
   indicators: [
@@ -30,4 +30,6 @@ assert.equal(fmtDelta(9, 'jours'), '+9 j');
 assert.equal(fmtDelta(0, '%'), '0 %');
 assert.equal(eauCellText(e.rows[0], e.rows[0].cells[0]), '−11 % [−30 ; +28]');
 assert.equal(eauCellText(e.rows[0], { q50: undefined }), '—');
+assert.match(provenanceSentence(0), /^Valeurs issues du bassin versant de la commune/);
+assert.match(provenanceSentence(2), /bassin versant éloigné/);
 console.log('eau : ok');

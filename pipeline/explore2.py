@@ -37,7 +37,7 @@ from .util import dep_of_commune
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "data" / "eau" / "explore2"
-VERSION = 1
+VERSION = 2  # 2 : libellés de provenance repris du producteur
 DATASET = "69848339e734f1ba1e7f3217"  # « Indicateurs de débits futurs Explore2 TRACC agrégés par territoire »
 TEST_MARK = "attention-test"
 
@@ -63,10 +63,10 @@ PROVENANCE = {
     "Non (bassin versant proche)": 1,
     "Non (bassin versant éloigné)": 2,
 }
-PROVENANCE_TEXT = [
-    "points de simulation du bassin versant de la commune",
-    "aucun point dans la commune : bassin versant proche",
-    "aucun point dans la commune ni à proximité : bassin versant éloigné",
+PROVENANCE_TEXT = [  # libellés du producteur (colonne donnees_issues_territoire)
+    "bassin versant du territoire",
+    "bassin versant proche",
+    "bassin versant éloigné",
 ]
 MIN_COMMUNES = 30_000  # ~34 400 en février 2026
 
