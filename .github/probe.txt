@@ -1,6 +1,5 @@
-# sonde 2 : LCZ (contenu d'une archive), APL, maternités, FINESS géolocalisé
-https://www.insee.fr/	sh python3 .github/probe.py lcz
-https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/530_l-accessibilite-potentielle-localisee-apl/attachments/indicateur_d_apl_aux_medecins_generalistes_xlsx" 7
-https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/530_l-accessibilite-potentielle-localisee-apl/attachments/indicateur_d_apl_aux_sages_femmes_xlsx" 7
-https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/fichier_maternites_112021/attachments/fichier_maternites_122025_mad_xlsx" 6
-https://www.insee.fr/	sh python3 .github/probe.py lines "https://static.data.gouv.fr/resources/finess-extraction-du-fichier-des-etablissements/20260512-091152/etalab-cs1100507-stock-20260512-0339.csv"
+# sonde 3 : couverture LCZ par commune, APL (en-têtes), maternités (dernière année)
+https://www.insee.fr/	sh python3 .github/probe.py csvhead "https://static.data.gouv.fr/resources/cartographie-des-zones-climatiques-locales-lcz-des-93-territoires-de-plus-de-50-000-habitants-en-france/20260717-100717/couverture-lcz-sat-2022-fr.csv" | head -c 20000
+https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/530_l-accessibilite-potentielle-localisee-apl/attachments/indicateur_d_apl_aux_medecins_generalistes_xlsx" 6 6 "APL 2024"
+https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/530_l-accessibilite-potentielle-localisee-apl/attachments/indicateur_d_apl_aux_sages_femmes_xlsx" 6 6 "APL 2024"
+https://www.insee.fr/	sh python3 .github/probe.py xlsx "https://data.drees.solidarites-sante.gouv.fr/api/v2/catalog/datasets/fichier_maternites_112021/attachments/fichier_maternites_122025_mad_xlsx" 6 3 "2024|2025|ynth"

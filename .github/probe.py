@@ -4,21 +4,24 @@ def get(url, timeout=900):
         b = r.read()
     return gzip.decompress(b) if b[:2] == b"\x1f\x8b" else b
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-def xlsx(data, nrows=8):
+def xlsx(data, nrows=8, skip=0, only=None):
     z = zipfile.ZipFile(io.BytesIO(data))
     ss = []
     if "xl/sharedStrings.xml" in z.namelist():
         for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall("m:si", NS):
             ss.append("".join(t.text or "" for t in si.iter("{%s}t" % NS["m"])))
     wb = ET.fromstring(z.read("xl/workbook.xml"))
-    names = [s.get("name") for s in wb.find("m:sheets", NS)]
-    rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
-    targets = [r.get("Target") for r in rels if "worksheet" in r.get("Type")]
-    for name, t in zip(names, targets):
+    RID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+    sheets = [(s.get("name"), s.get(RID)) for s in wb.find("m:sheets", NS)]
+    rels = {r.get("Id"): r.get("Target") for r in ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))}
+    print("feuilles :", [n for n, _ in sheets])
+    for name, rid in sheets:
+        if only and not re.search(only, name): continue
+        t = rels[rid]
         root = ET.fromstring(z.read("xl/" + t.lstrip("/").replace("xl/", "")))
         rows = root.findall(".//m:sheetData/m:row", NS)
         print(f"--- feuille {name!r} : {len(rows)} lignes")
-        for row in rows[:nrows]:
+        for row in rows[skip:skip + nrows] + rows[-2:]:
             vals = []
             for c in row.findall("m:c", NS):
                 v = c.find("m:v", NS); is_ = c.find("m:is", NS)
@@ -64,9 +67,21 @@ if what == "lcz":
                 print("  TIFF tag", tag, typ, cnt, val)
         if n.lower().endswith((".csv", ".txt", ".xml")) and z.getinfo(n).file_size < 200000: print(n, z.read(n)[:1500])
 elif what == "xlsx":
-    xlsx(get(sys.argv[2]), int(sys.argv[3]) if len(sys.argv) > 3 else 8)
+    xlsx(get(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), sys.argv[5] if len(sys.argv) > 5 else None)
 elif what == "lines":
     t = get(sys.argv[2]).decode("latin-1")
     lines = t.splitlines(); print(len(lines), "lignes")
     print("\n".join(lines[:4])); print("..."); print("\n".join(lines[len(lines)//2: len(lines)//2 + 3]))
     print(collections.Counter(l.split(";")[0] for l in lines).most_common(5))
+elif what == "csvhead":
+    t = get(sys.argv[2]).decode("utf-8-sig", "replace")
+    lines = t.splitlines(); print(len(lines), "lignes"); print("\n".join(lines[:6])); print("\n".join(lines[-2:]))
+    sep = ";" if lines[0].count(";") > lines[0].count(",") else ","
+    head = lines[0].split(sep)
+    rows = list(csv.reader(lines[1:], delimiter=sep))
+    for j, k in enumerate(head):
+        vals = [r[j] for r in rows if len(r) > j]
+        cnt = collections.Counter(vals)
+        print(" ", k, "| distincts", len(cnt), "| ex.", cnt.most_common(4))
+    for r in rows:
+        if any(x in ",".join(r) for x in ("Grenoble", "Chambéry", "Saint-Étienne", "Lyon")): print("  >", r[:40])
