@@ -9,6 +9,7 @@ import { fmtDay, fmtDuration, fmtKm, fmtPct, fmtPop, fmtPrice, plural, trainsTex
 import { CATNAT_KINDS, RISK_CAVEAT, riskLabel, riskReading } from '../communes/risks.js';
 import { traitText } from '../communes/risks-view.js';
 import { NATIONAL_LEFT, SOURCES, trainNote } from './text.js';
+import { EAU_CAVEAT, eauCellText, eauOf } from '../eau.js';
 import { FUTUR, TRACC_CAVEAT, TRACC_LEVELS_NOTE, TRACC_SOURCE, cellText, fmtFutur, hasFutur, pointNote, trajectory } from '../climat.js';
 
 /**
@@ -33,6 +34,7 @@ export function buildProfile(ctx, row, { regionCode, failed = false }) {
     commune: c, // null tant que le fichier régional n'est pas chargé
     sections: [
       ...communeSections(ctx, c, failed),
+      eauSection(ctx, code, dep),
       departmentSection(ctx, dep, terr),
     ],
   };
@@ -205,6 +207,33 @@ function futur(c, tracc) {
     rows: FUTUR.map((f) => ({ id: `futur_${f.key}`, label: f.label, text: Number.isFinite(c[f.col]) ? fmtFutur(c[f.col], f.unit, f.d) : 'non disponible', sub: 'à +2,7 °C' })),
     note: [pointNote(c), TRACC_CAVEAT].filter(Boolean).join(' '),
   };
+}
+
+const EAU_TITLE = 'Eau des rivières — projections (données de test)';
+
+/**
+ * Débits futurs (Explore2, tables communales du RARE). `eau` : lecture complète pour la fiche ; `rows` : valeurs à +2,7 °C ;
+ * `test` : statut constaté et liens vers la source qui porte la mention.
+ */
+function eauSection(ctx, code, dep) {
+  const base = { id: 'eau', scope: 'commune', title: EAU_TITLE, rows: [] };
+  const E = ctx.eau;
+  if (!E || E.indexState === 'error' || E.depState.get(dep) === 'error') return { ...base, state: 'error' };
+  const index = E.index;
+  const data = E.deps.get(dep);
+  if (!index || !data) return { ...base, state: 'loading' };
+  const ds = index.dataset;
+  const common = {
+    test: { ...index.test, page: ds.page, file: ds.sample_file, fileSize: ds.sample_size, published: ds.files_published, renamed: ds.last_modified },
+    note: EAU_CAVEAT,
+    source: { label: `${ds.organization || 'RARE'} — ${ds.title}, d’après Explore2 (INRAE)`, url: ds.page, licence: ds.licence, period: 'niveaux de réchauffement de la TRACC ; référence 1976–2005' },
+  };
+  const r = eauOf(index, data, code);
+  if (!r) {
+    return { ...base, ...common, rows: [{ id: 'eau_none', label: 'Projections', text: 'commune absente du jeu de données', sub: `${fmtNumber(index.communes)} communes couvertes` }] };
+  }
+  const at = (row) => row.cells.find((x) => x.level === 'GWL20');
+  return { ...base, ...common, eau: r, rows: r.rows.map((row) => ({ id: `eau_${row.key}`, label: row.label, text: eauCellText(row, at(row)), sub: 'à +2,7\u00a0°C' })) };
 }
 
 function departmentSection(ctx, dep, terr) {

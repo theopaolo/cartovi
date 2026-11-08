@@ -1,7 +1,8 @@
 // fiche.js — fiche d'une commune : les sections du profil (profile.js), chacune avec unité, période et source.
 import { SCORED_LEVEL, cellText } from '../climat.js';
+import { eauCellText } from '../eau.js';
 import { h } from '../dom.js';
-import { NBSP, fmtNumber } from '../format.js';
+import { NBSP, fmtDate, fmtNumber } from '../format.js';
 import { staleBadge } from '../panel.js';
 import { NATIONAL_LEFT } from './text.js';
 import { MAX_COMPARE } from './hash.js';
@@ -68,7 +69,7 @@ export function createFiche(root, { onClose, onToggleCompare }) {
 
 const bar = (v) => h('div', { class: 'bar', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.max(0, Math.min(100, v))}%` }));
 const rows = (list) => h('dl', { class: 'kv' }, list.flatMap((r) => [h('dt', {}, r.label), h('dd', {}, r.text, r.sub ? h('span', { class: 'sub' }, r.sub) : null)]));
-const head = (s) => h('h3', {}, s.title, h('span', { class: `badge scope-${s.scope}` }, SCOPE[s.scope]));
+const head = (s) => h('h3', {}, s.title, h('span', { class: `badge scope-${s.scope}` }, SCOPE[s.scope]), s.test?.marked || s.test?.page_marked ? h('span', { class: 'badge warn' }, 'données de test') : null);
 
 function section(s) {
   if (s.id === 'departement') return departement(s);
@@ -83,6 +84,10 @@ function section(s) {
     out.append(...riskNodes(s.reading));
   } else if (s.id === 'futur' && s.trajectory) {
     out.append(trajectoryTable(s.trajectory));
+  } else if (s.id === 'eau' && s.eau) {
+    out.append(testNote(s.test), eauTable(s.eau), h('p', { class: 'muted small' }, `Valeurs issues des ${s.eau.provText}.`));
+  } else if (s.id === 'eau') {
+    out.append(testNote(s.test), rows(s.rows));
   } else {
     out.append(rows(s.rows));
   }
@@ -128,6 +133,58 @@ function trajectoryTable(traj) {
             {},
             h('th', { scope: 'row' }, ind.label, h('span', { class: 'sub' }, ind.unit)),
             ind.cells.map((cell) => h('td', { class: `c-val${cell.level === SCORED_LEVEL ? ' cur' : ''}` }, cellText(ind, cell))),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/** Statut de test des débits futurs, tel que constaté sur la source, avec les liens qui permettent de le vérifier. */
+function testNote(t) {
+  if (!t) return null;
+  const link = (href, text) => h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, text);
+  const pub = t.published || [];
+  const when = pub.length > 1 ? `entre le ${fmtDate(pub[0])} et le ${fmtDate(pub[pub.length - 1])}` : pub.length ? `le ${fmtDate(pub[0])}` : '';
+  if (!t.marked && !t.page_marked) {
+    return h('p', { class: 'stale-msg' }, 'Ces fichiers ont été republiés sans la mention « test » : leur statut est à revérifier. ', link(t.page, 'Page du jeu de données'), '.');
+  }
+  return h(
+    'p',
+    { class: 'stale-msg' },
+    h('strong', {}, 'Données de test. '),
+    `Les fichiers ont été publiés ${when} sous une adresse marquée « attention-test » par leur producteur. `,
+    t.page_marked
+      ? 'La page du jeu porte la même mention. '
+      : 'La page du jeu ne porte plus cette mention, mais les fichiers n’ont pas été republiés et contiennent encore des erreurs d’étiquetage (la période de calcul des crues y est décrite comme « mois du minimum des débits »). ',
+    'Vérifier : ',
+    link(t.file, `un des fichiers (adresse « attention-test »${t.fileSize ? `, CSV de ${fmtNumber(t.fileSize / 1e6)}${NBSP}Mo` : ''})`),
+    ' · ',
+    link(t.page, 'page du jeu de données'),
+    '.',
+  );
+}
+
+/** Débits futurs : un indicateur par ligne, un niveau de réchauffement par colonne (écarts à 1976–2005). */
+function eauTable(e) {
+  const levels = e.rows[0].cells;
+  return h(
+    'div',
+    { class: 'table-wrap' },
+    h(
+      'table',
+      { class: 'rank-table traj-table' },
+      h('caption', { class: 'sr-only' }, 'Débits futurs des rivières, écart à 1976–2005 par niveau de réchauffement'),
+      h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Indicateur'), levels.map((l) => h('th', { scope: 'col', class: `c-val${l.level === SCORED_LEVEL ? ' cur' : ''}` }, l.label, h('span', { class: 'sub' }, l.horizon))))),
+      h(
+        'tbody',
+        {},
+        e.rows.map((row) =>
+          h(
+            'tr',
+            {},
+            h('th', { scope: 'row', title: row.definition }, row.label, h('span', { class: 'sub' }, row.definition)),
+            row.cells.map((cell) => h('td', { class: `c-val${cell.level === SCORED_LEVEL ? ' cur' : ''}` }, eauCellText(row, cell))),
           ),
         ),
       ),

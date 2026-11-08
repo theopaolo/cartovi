@@ -59,8 +59,12 @@ Note de passation entre sessions de travail (à lire en premier par une nouvelle
   mêmes niveaux) et les déposer sous `Q05_<niveau>.csv` / `Q95_<niveau>.csv` : la fiche
   affichera l'intervalle entre simulations (consigne des producteurs : jamais la médiane
   seule). Vérifier aussi les conditions d'utilisation DRIAS (redistribution des fichiers bruts).
-- **Décision en attente** : Explore2 (débits futurs par commune, RARE, data.gouv) est marqué
-  « attention test » avec des défauts visibles ; recommandation : fiche seulement, hors score.
+- **Explore2 (décision : option B)** : débits futurs par commune dans la fiche Recherche
+  seulement, hors score, badge « données de test » et liens vers la page du jeu et vers un
+  fichier marqué « attention-test » (`pipeline/explore2.py`, `web/js/eau.js`). Constat du
+  8/11/2026 : la page du jeu ne porte plus la mention, les fichiers (6–9 février) si, avec
+  leurs erreurs d'étiquetage. Si les fichiers sont republiés sans la mention, la fiche le
+  signale : reposer alors la question du score à l'utilisateur.
 - **Reste de l'étape 2** : LCZ Cerema (îlots de chaleur), EAIP/argiles (polygones).
 
 ## Prochaines étapes demandées

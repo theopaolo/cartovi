@@ -118,6 +118,36 @@ d'Explore2-Climat.
 
 Mention obligatoire : « DRIAS, données Météo-France ».
 
+### Débits futurs des rivières : Explore2 (données de test, fiche seulement)
+
+`python -m pipeline.explore2` (hebdomadaire, un seul appel à l'API data.gouv tant que
+les fichiers ne changent pas) lit les tables communales publiées par le réseau des
+agences régionales de l'environnement (RARE) à partir du projet Explore2 (INRAE) :
+écart à 1976–2005 du débit d'étiage d'été, de la durée des basses eaux d'été, du débit
+moyen annuel, du débit de crue et de la durée des crues, aux niveaux +2, +2,7 et +4 °C.
+Pour chaque valeur : médiane des simulations et intervalle q05–q95. Sortie :
+`web/data/eau/explore2/index.json` et un fichier par département.
+
+- **Statut de test.** Les fichiers ont été déposés du 6 au 9 février 2026 sous une
+  adresse marquée « attention-test ». La page du jeu a été renommée depuis sans cette
+  mention, mais les fichiers n'ont pas été republiés : la période de calcul du débit de
+  crue et de la durée des crues y est toujours décrite comme « mois du minimum des
+  débits mensuels », et un niveau +2 °C figure dans les données sans figurer dans la
+  fiche de méthode. La fiche d'une commune l'affiche avec un badge « données de test »
+  et des liens vers la page du jeu et vers un fichier qui porte la mention. Le pipeline
+  relève ce statut à chaque publication (`test` dans `index.json`).
+- **Hors de tout score**, par décision : une donnée que son producteur n'a pas validée
+  peut informer, pas classer.
+- **Provenance.** 65 % des communes ont des points de simulation dans leur propre
+  bassin versant ; pour les autres, les valeurs viennent d'un bassin versant proche
+  (28 %) ou éloigné (7 %). La fiche le dit pour chaque commune.
+- **Ce que ça mesure** : les cours d'eau. Pas les nappes souterraines, ni l'eau du
+  robinet, qui dépend des captages et des interconnexions. Le RARE prévient aussi que la
+  médiane spatiale des points d'un territoire sur-représente les cours d'eau qui en ont
+  beaucoup.
+- **Couverture** : 34 418 communes (référentiel de février 2026) ; une commune créée
+  depuis est signalée « absente du jeu ».
+
 ## Couche communale : chercher une commune
 
 `python -m pipeline.communes` (mensuel, dans le même workflow) produit
@@ -180,13 +210,8 @@ change d'un mode à l'autre est en soi une information.
 
 ### Pistes non encore intégrées (et pourquoi)
 
-- **Débits futurs (Explore2 au format TRACC)** : tables par commune publiées en 2026
-  par le réseau des agences régionales de l'environnement (RARE), en Licence Ouverte,
-  avec min, q05, q50, q95 et max entre simulations (étiage d'été VCN10, durée des
-  étiages, crues). Mais leur producteur les marque « attention test », et elles portent
-  encore des défauts visibles : le débit de crue y est décrit comme « mois du minimum
-  des débits », et un niveau +2 °C figure dans les données sans figurer dans la fiche de
-  méthode. Environ 150 Mo par indicateur.
+- **Débits futurs dans le score** : affichés dans la fiche (voir plus haut), mais exclus
+  du score tant que les fichiers portent la mention « test ».
 - **Îlots de chaleur (LCZ du Cerema)** : 88 archives de 100 à 200 Mo à intersecter.
   C'est un calcul à faire une fois, hors ligne.
 - **Zones inondables chiffrées (EAIP) et exposition aux argiles** : uniquement des
@@ -204,7 +229,8 @@ projet :
 
 - **commune** : train direct vers les villes de référence, climat politique, culture à
   15 km, prix des maisons, terres, risques par aléa, et climat futur (les sept
-  indicateurs TRACC du point de grille, de la référence 1976–2005 à +4 °C) ;
+  indicateurs TRACC du point de grille, de la référence 1976–2005 à +4 °C), débits
+  futurs des rivières (Explore2, données de test, hors score) ;
 - **département** : les indicateurs de la carte principale, avec le rang centile et la
   classe du département. Ce sont des valeurs départementales, signalées comme telles.
 

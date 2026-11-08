@@ -6,6 +6,7 @@ import { fmtDateTime, fmtNumber } from '../format.js';
 import { renderCompare } from './compare.js';
 import { loadContext, loadNames } from './data.js';
 import { loadTracc } from '../climat.js';
+import { loadEauDep, loadEauIndex } from '../eau.js';
 import { createFiche } from './fiche.js';
 import { MAX_COMPARE, hashFor, parseHash, writeHash } from './hash.js';
 import { buildProfile } from './profile.js';
@@ -240,7 +241,41 @@ function update() {
   scheduleSearch();
   for (const code of new Set([state.c, ...state.cmp])) if (code) ensure(code);
   if (state.c || state.cmp.length) ensureTracc();
+  if (state.c) ensureEau(state.c.slice(0, 2));
   scheduleRender();
+}
+
+// débits futurs (Explore2, données de test) : métadonnées puis fichier du département, seulement pour la fiche ouverte
+function ensureEau(dep) {
+  if (!ctx) return;
+  ctx.eau ??= { index: null, indexState: 'idle', deps: new Map(), depState: new Map() };
+  const E = ctx.eau;
+  if (E.indexState === 'idle') {
+    E.indexState = 'loading';
+    loadEauIndex()
+      .then((i) => {
+        E.index = i;
+        E.indexState = 'ok';
+      })
+      .catch((e) => {
+        E.indexState = 'error';
+        console.info(`débits futurs : ${e.message}`);
+      })
+      .finally(scheduleRender);
+  }
+  if (!E.depState.has(dep)) {
+    E.depState.set(dep, 'loading');
+    loadEauDep(dep)
+      .then((d) => {
+        E.deps.set(dep, d);
+        E.depState.set(dep, 'ok');
+      })
+      .catch((e) => {
+        E.depState.set(dep, 'error');
+        console.info(`débits futurs (${dep}) : ${e.message}`);
+      })
+      .finally(scheduleRender);
+  }
 }
 
 // trajectoire du climat futur (grille TRACC, ≈ 1,4 Mo) : chargée une fois, à la première fiche ouverte ;
