@@ -29,27 +29,6 @@ export const CHALEUR_CAVEAT =
   'sol minéralisé (bâti et revêtements imperméables), couvert d’arbres, part du tissu compact (plus de 40 % de surface bâtie), où la chaleur s’accumule le jour et se dissipe mal la nuit. ' +
   'Ce n’est pas une température : relief, vent et cours d’eau modulent l’effet. Seules les 88 aires urbaines de plus de 50 000 habitants sont cartographiées.';
 
-/** Libellés des classes LCZ (Stewart et Oke, traduction du Cerema). */
-export const LCZ_LABELS = {
-  1: 'ensemble compact de tours',
-  2: 'ensemble compact d’immeubles',
-  3: 'ensemble compact de maisons',
-  4: 'ensemble de tours espacées',
-  5: 'ensemble d’immeubles espacés',
-  6: 'ensemble de maisons espacées',
-  7: 'constructions légères denses',
-  8: 'bâtiments bas de grande emprise',
-  9: 'bâti diffus',
-  10: 'industrie lourde',
-  A: 'végétation arborée dense',
-  B: 'arbres épars',
-  C: 'végétation arbustive',
-  D: 'végétation basse',
-  E: 'sol imperméable nu',
-  F: 'sol nu perméable',
-  G: 'eau',
-};
-
 export const fmtApl = (v) => `${fmtNumber(v, 1)}${NBSP}consultations par an et par habitant`;
 export const fmtAplSf = (v) => `${fmtNumber(v, 0)}${NBSP}ETP pour 100${NBSP}000${NBSP}femmes`;
 export const fmtKmRound = (v) => `${fmtNumber(v, v < 10 ? 1 : 0)}${NBSP}km`;
@@ -73,6 +52,7 @@ export function santeRows(c) {
   ];
 }
 
+/** La classe de l'îlot de la mairie (lcz_mairie) n'est pas affichée : c'est souvent l'hôtel de ville lui-même, grand bâtiment public, pas le quartier. */
 export function chaleurRows(c) {
   const partial = Number.isFinite(c.lcz_couvert) && c.lcz_couvert < 99 ? `${fmtNumber(c.lcz_couvert, 0)}${NBSP}% du disque cartographié` : null;
   const none = 'moins de la moitié du disque cartographié';
@@ -80,6 +60,5 @@ export function chaleurRows(c) {
     { id: 'mineral', label: 'Sol minéralisé à 1 km de la mairie', text: Number.isFinite(c.mineral_1km) ? fmtPct(c.mineral_1km) : none, sub: partial || 'bâti et revêtements imperméables' },
     { id: 'arbres', label: 'Couvert d’arbres à 1 km de la mairie', text: Number.isFinite(c.arbres_1km) ? fmtPct(c.arbres_1km) : none },
     { id: 'dense', label: 'Tissu compact à 1 km de la mairie', text: Number.isFinite(c.dense_1km) ? fmtPct(c.dense_1km) : none, sub: 'classes LCZ 1 à 3 : plus de 40 % de surface bâtie' },
-    { id: 'lcz_mairie', label: 'Îlot de la mairie', text: c.lcz_mairie != null ? `LCZ ${c.lcz_mairie} : ${LCZ_LABELS[c.lcz_mairie] ?? 'classe inconnue'}` : '—' },
   ];
 }

@@ -289,7 +289,7 @@ on échantillonne un disque de 1 km autour de la mairie tous les 100 m (≈ 314 
 | `mineral_1km` | part minéralisée du sol : bâti + revêtements imperméables (indicateurs BuR + RoR du Cerema) |
 | `arbres_1km` | part couverte d'arbres (VeR × VHR) |
 | `dense_1km` | part du disque en tissu compact, classes LCZ 1 à 3 (plus de 40 % de surface bâtie) |
-| `lcz_mairie` | classe de l'îlot de la mairie |
+| `lcz_mairie` | classe de l'îlot de la mairie (non affichée : c'est souvent l'hôtel de ville lui-même, un grand bâtiment public, pas le quartier) |
 | `lcz_couvert` | part du disque cartographiée ; sous 50 %, les parts ne sont pas publiées |
 
 - **Pourquoi la mairie et 1 km.** C'est le centre que l'on pratique à pied ; un quotidien
